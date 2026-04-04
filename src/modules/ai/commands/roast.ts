@@ -1,0 +1,67 @@
+import { SlashCommandBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
+import type { CommandDef } from '../../../types';
+import { ask } from '../router';
+import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
+import { logger } from '../../../services/logger';
+
+const COOLDOWN_MS = 15_000;
+
+const roast: CommandDef = {
+  data: new SlashCommandBuilder()
+    .setName('roast')
+    .setDescription('Get a lighthearted AI roast of a user')
+    .addUserOption((opt) =>
+      opt.setName('user').setDescription('User to roast').setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt.setName('lang').setDescription('Response language').setRequired(false)
+        .addChoices(
+          { name: 'English', value: 'English' }, { name: 'French', value: 'French' },
+          { name: 'Spanish', value: 'Spanish' }, { name: 'German', value: 'German' },
+          { name: 'Japanese', value: 'Japanese' }, { name: 'Korean', value: 'Korean' },
+        )
+    ) as SlashCommandBuilder,
+
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (checkCooldown('roast', interaction.user.id, COOLDOWN_MS)) {
+      const secs = (remainingCooldown('roast', interaction.user.id, COOLDOWN_MS) / 1000).toFixed(0);
+      await interaction.reply({ content: `Cooldown - try again in ${secs}s.`, ephemeral: true });
+      return;
+    }
+
+    await interaction.deferReply();
+
+    const target = interaction.options.getUser('user', true);
+    const lang   = interaction.options.getString('lang') ?? 'English';
+    let prompt = `Give a lighthearted, funny, PG-rated roast for a Discord user named "${target.displayName}". Keep it brief (2-3 sentences), playful, and never mean-spirited or offensive. Be creative and witty. Respond in ${lang}.`;
+
+    // Fetch recent messages from the target user for extra roast material
+    try {
+      if (interaction.channel && 'messages' in interaction.channel) {
+        const fetched = await interaction.channel.messages.fetch({ limit: 100 });
+        const targetMessages = fetched
+          .filter((msg) => msg.author.id === target.id)
+          .first(10)
+          .map((msg) => msg.content)
+          .filter((content) => content.length > 0);
+
+        if (targetMessages.length > 0) {
+          prompt += `\n\nHere are some of their recent messages for extra roast material:\n<messages>\n${targetMessages.join('\n')}\n</messages>`;
+        }
+      }
+    } catch (err) {
+      logger.debug({ err }, '/roast: could not fetch channel messages');
+    }
+
+    try {
+      const result = await ask(interaction.guildId ?? 'dm', interaction.user.id, prompt);
+      await interaction.editReply({ content: `${target} ${result.text}` });
+    } catch (err) {
+      logger.error({ err }, '/roast failed');
+      await interaction.editReply('The AI roast machine is taking a break. Try again later.');
+    }
+  },
+};
+
+export default roast;

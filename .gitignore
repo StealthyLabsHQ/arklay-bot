@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.js.map
+data/
+*.db
+*.db-journal
+cookies.txt
+CLAUDE.md
