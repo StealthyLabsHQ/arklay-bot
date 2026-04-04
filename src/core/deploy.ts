@@ -21,15 +21,24 @@ async function deploy(): Promise<void> {
 
   const rest = new REST().setToken(config.DISCORD_TOKEN);
 
-  const route = config.GUILD_ID
-    ? Routes.applicationGuildCommands(config.CLIENT_ID, config.GUILD_ID)
-    : Routes.applicationCommands(config.CLIENT_ID);
+  // Support multiple guild IDs separated by commas, or empty/absent for global
+  const guildIds = config.GUILD_ID
+    ? config.GUILD_ID.split(',').map((id) => id.trim()).filter(Boolean)
+    : [];
 
-  const scope = config.GUILD_ID ? `guild ${config.GUILD_ID}` : 'global';
-
-  logger.info('Deploying %d command(s) [%s]...', commands.length, scope);
-  await rest.put(route, { body: commands });
-  logger.info('Commands deployed successfully');
+  if (guildIds.length > 0) {
+    for (const guildId of guildIds) {
+      const route = Routes.applicationGuildCommands(config.CLIENT_ID, guildId);
+      logger.info('Deploying %d command(s) to guild %s...', commands.length, guildId);
+      await rest.put(route, { body: commands });
+    }
+    logger.info('Commands deployed to %d guild(s)', guildIds.length);
+  } else {
+    const route = Routes.applicationCommands(config.CLIENT_ID);
+    logger.info('Deploying %d command(s) globally...', commands.length);
+    await rest.put(route, { body: commands });
+    logger.info('Commands deployed globally');
+  }
 
   process.exit(0);
 }

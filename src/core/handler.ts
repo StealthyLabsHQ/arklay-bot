@@ -1,5 +1,5 @@
 import type { Client, MessageContextMenuCommandInteraction, ChatInputCommandInteraction } from 'discord.js';
-import { Events, ActivityType } from 'discord.js';
+import { Events, ActivityType, OAuth2Scopes, PermissionFlagsBits } from 'discord.js';
 import type { BotModule } from '../types';
 import { logger } from '../services/logger';
 import { config } from '../services/config';
@@ -71,7 +71,7 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
     }
   });
 
-  // ── Text prefix commands (.play, arklay ask, etc.) ────────────────────────
+  // ── Text prefix commands (.play, arklay ask, etc.) ───────────────────────
   const prefix = config.BOT_PREFIX.toLowerCase();
   const botName = config.BOT_NAME.toLowerCase();
 
@@ -127,5 +127,29 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
   client.once(Events.ClientReady, (c) => {
     logger.info('Bot connected: %s', c.user.tag);
     c.user.setActivity('/help', { type: ActivityType.Playing });
+
+    const inviteUrl = c.generateInvite({
+      scopes: [OAuth2Scopes.Bot, OAuth2Scopes.ApplicationsCommands],
+      permissions: [
+        PermissionFlagsBits.ManageRoles,
+        PermissionFlagsBits.ManageChannels,
+        PermissionFlagsBits.KickMembers,
+        PermissionFlagsBits.BanMembers,
+        PermissionFlagsBits.ModerateMembers,
+        PermissionFlagsBits.ManageGuildExpressions,
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ManageMessages,
+        PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.ReadMessageHistory,
+        PermissionFlagsBits.UseApplicationCommands,
+        PermissionFlagsBits.Connect,
+        PermissionFlagsBits.Speak,
+        PermissionFlagsBits.MuteMembers,
+        PermissionFlagsBits.MoveMembers,
+      ],
+    });
+    logger.info('Invite URL: %s', inviteUrl);
   });
 }

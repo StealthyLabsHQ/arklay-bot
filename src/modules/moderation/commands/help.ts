@@ -259,7 +259,25 @@ function buildCommandEmbed(name: string, client: Client, lang: string): EmbedBui
 function getInviteUrl(client: Client): string {
   return client.generateInvite({
     scopes: [OAuth2Scopes.Bot, OAuth2Scopes.ApplicationsCommands],
-    permissions: [PermissionFlagsBits.Administrator],
+    permissions: [
+      PermissionFlagsBits.ManageRoles,
+      PermissionFlagsBits.ManageChannels,
+      PermissionFlagsBits.KickMembers,
+      PermissionFlagsBits.BanMembers,
+      PermissionFlagsBits.ModerateMembers,
+      PermissionFlagsBits.ManageGuildExpressions,
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.ManageMessages,
+      PermissionFlagsBits.EmbedLinks,
+      PermissionFlagsBits.AttachFiles,
+      PermissionFlagsBits.ReadMessageHistory,
+      PermissionFlagsBits.UseApplicationCommands,
+      PermissionFlagsBits.Connect,
+      PermissionFlagsBits.Speak,
+      PermissionFlagsBits.MuteMembers,
+      PermissionFlagsBits.MoveMembers,
+    ],
   });
 }
 
