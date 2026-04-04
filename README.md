@@ -1,5 +1,8 @@
 # Arklay
 
+![discord bot](https://github.com/user-attachments/assets/98355e27-94c3-4dde-9129-cad3053cb86f)
+
+
 A modular, open-source Discord bot built with TypeScript, discord.js v14, and Node.js. Arklay combines music playback, AI-powered commands (Claude + Gemini), image generation, server moderation, and utility tools into a single bot.
 
 Built by [StealthyLabs](https://stealthylabs.eu).
