@@ -11,6 +11,7 @@ export type Provider = 'claude' | 'gemini' | 'auto';
 export interface AskResult {
   text: string;
   provider: 'claude' | 'gemini';
+  model: string;
   tokenUsage?: {
     inputTokens: number;
     outputTokens: number;
@@ -32,30 +33,35 @@ export async function ask(
   provider: Provider = 'auto'
 ): Promise<AskResult> {
   const resolved = resolveProvider(provider, userId);
-  const model = getAIConfig(userId).model;
+  const cfg = getAIConfig(userId);
+  // Use the configured model only if it matches the resolved provider, otherwise use the default for that provider
+  const actualModel = cfg.provider === resolved ? cfg.model
+    : resolved === 'claude' ? 'claude-sonnet-4-6'
+    : 'gemini-3.1-flash-lite-preview';
 
-  if (isLimitReached(userId, model)) {
+  if (isLimitReached(userId, actualModel)) {
     const { getDailyLimit } = await import('../usageLimit');
-    throw new DailyLimitError(model, getDailyLimit(model) ?? 0);
+    throw new DailyLimitError(actualModel, getDailyLimit(actualModel) ?? 0);
   }
 
   const history = getHistory(guildId, userId);
 
   if (resolved === 'claude') {
     const result = await askClaude(history, prompt, userId);
-    incrementUsage(userId, model);
+    incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', prompt);
     saveMessage(guildId, userId, 'assistant', result.text);
-    return { text: result.text, provider: 'claude', tokenUsage: result.usage };
+    return { text: result.text, provider: 'claude', model: actualModel, tokenUsage: result.usage };
   }
 
   const result = await askGemini(history, prompt, userId);
-  incrementUsage(userId, model);
+  incrementUsage(userId, actualModel);
   saveMessage(guildId, userId, 'user', prompt);
   saveMessage(guildId, userId, 'assistant', result.text);
   return {
     text: result.text,
     provider: 'gemini',
+    model: actualModel,
     tokenUsage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
   };
 }

@@ -107,10 +107,10 @@ const aiplaylist: CommandDef = {
 
     const { name: modelName, source } = getModelDisplayInfo(
       aiResult.provider,
-      getAIConfig(interaction.user.id).model,
+      aiResult.model,
       aiResult.provider === 'claude' && isVertexMode()
     );
-    const left = remaining(interaction.user.id, getAIConfig(interaction.user.id).model);
+    const left = remaining(interaction.user.id, aiResult.model);
     const quota = left !== null ? ` \u2022 ${left} req left` : '';
 
     const embed = new EmbedBuilder()

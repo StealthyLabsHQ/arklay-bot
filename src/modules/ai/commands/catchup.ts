@@ -77,10 +77,10 @@ const catchup: CommandDef = {
         .setFooter({ text: (() => {
           const { name, source } = getModelDisplayInfo(
             result.provider,
-            getAIConfig(interaction.user.id).model,
+            result.model,
             result.provider === 'claude' && isVertexMode()
           );
-          const left = remaining(interaction.user.id, getAIConfig(interaction.user.id).model);
+          const left = remaining(interaction.user.id, result.model);
           const quota = left !== null ? ` \u2022 ${left} req left` : '';
           return `${lines.length} messages analyzed \u2022 ${name} (${source})${quota}`;
         })() });

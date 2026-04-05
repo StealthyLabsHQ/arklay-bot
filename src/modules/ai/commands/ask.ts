@@ -10,7 +10,7 @@ import { logger } from '../../../services/logger';
 
 const BASE_COOLDOWN_MS = 8_000;
 const MAX_COOLDOWN_MS  = 60_000;
-const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';
+const LEARN_MORE = 'https://stealthylabs.eu/docs/specter-bot';
 
 let askCooldown    = BASE_COOLDOWN_MS;
 let lastAskError   = 0;
@@ -83,14 +83,14 @@ const askCommand: CommandDef = {
 
       const { name, source } = getModelDisplayInfo(
         result.provider,
-        getAIConfig(interaction.user.id).model,
+        result.model,
         result.provider === 'claude' && isVertexMode()
       );
 
       const parts: string[] = [];
 
       // Daily quota (Claude + Gemini)
-      const left = remaining(interaction.user.id, getAIConfig(interaction.user.id).model);
+      const left = remaining(interaction.user.id, result.model);
       if (left !== null) parts.push(`${left} req left today`);
 
       // Token usage
