@@ -35,7 +35,8 @@ export function formatDuration(seconds: number | null): string {
 function sourceColor(source: string): number {
   if (source === 'spotify')    return 0x1db954;
   if (source === 'soundcloud') return 0xff5500;
-  return 0xff0000;
+  if (source === 'youtube')    return 0xff0000;
+  return 0x5865f2; // Discord blurple for unknown/autoplay/other
 }
 
 // ── Lavalink filter presets ──────────────────────────────────────────────────
@@ -217,10 +218,19 @@ export class GuildQueue {
       // If no encoded track, search via Lavalink
       if (!encoded) {
         const node = this.lavalinkPlayer.node;
-        const query = track.url.startsWith('http') ? track.url : `ytsearch:${track.playUrl}`;
-        const result = await node.rest.resolve(query);
+        // SoundCloud first (YouTube is currently broken), then YouTube as fallback
+        const isUrl = track.url.startsWith('http');
+        const searchQueries = isUrl
+          ? [track.url]
+          : [`scsearch:${track.playUrl}`, `ytsearch:${track.playUrl}`];
+        let result: Awaited<ReturnType<typeof node.rest.resolve>> | null = null;
+        for (const q of searchQueries) {
+          result = await node.rest.resolve(q);
+          if (result && result.loadType !== 'empty' && result.loadType !== 'error') break;
+          result = null;
+        }
 
-        if (!result || result.loadType === 'empty' || result.loadType === 'error') {
+        if (!result) {
           throw new Error(`No results for: ${track.title}`);
         }
 
@@ -333,7 +343,12 @@ export class GuildQueue {
     try {
       const query = `${lastTrack.title} similar music`;
       const node = this.lavalinkPlayer.node;
-      const result = await node.rest.resolve(`ytsearch:${query}`);
+
+      // SoundCloud first (YouTube is currently broken), then YouTube as fallback
+      let result = await node.rest.resolve(`scsearch:${query}`);
+      if (!result || result.loadType !== 'search') {
+        result = await node.rest.resolve(`ytsearch:${query}`);
+      }
 
       if (!result || result.loadType !== 'search') { this.scheduleDestroy(); return; }
 
@@ -412,7 +427,10 @@ export class GuildQueue {
     } else {
       embed.addFields({ name: 'Queue', value: 'Empty', inline: true });
     }
-    const sourceLabel = track.source === 'spotify' ? 'Spotify' : track.source === 'soundcloud' ? 'SoundCloud' : 'YouTube';
+    const sourceLabels: Record<string, string> = {
+      spotify: 'Spotify', soundcloud: 'SoundCloud', youtube: 'YouTube', autoplay: 'Autoplay',
+    };
+    const sourceLabel = sourceLabels[track.source] ?? track.source.charAt(0).toUpperCase() + track.source.slice(1);
     embed.addFields({ name: 'Source', value: sourceLabel, inline: true });
 
     const tags: string[] = [`Volume: ${this.volume}%`];

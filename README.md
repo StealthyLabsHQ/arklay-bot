@@ -9,7 +9,7 @@ Built by [StealthyLabs](https://stealthylabs.eu).
 ## Features
 
 **Music** (22 commands)
-Play music from YouTube, Spotify, and SoundCloud with full queue management, audio filters, lyrics, persistent player UI with buttons, auto-resume on restart, AI-generated playlists, autoplay, and track history.
+Play music from SoundCloud, Spotify, and YouTube with full queue management, audio filters, lyrics, persistent player UI with buttons and filter dropdown, auto-resume on restart, AI-generated playlists, autoplay, and track history. Powered by Lavalink + Shoukaku with SoundCloud as primary streaming source.
 
 **AI** (10 commands + local AI management)
 Chat with Claude (Anthropic), Gemini (Google), or a local model via Ollama (Gemma 4, Llama, Mistral, etc.). Generate images with Nano Banana 2, translate text, analyze images, catch up on conversations, summarize webpages. Bot owner can customize the local AI system prompt, knowledge base (RAG), and thinking mode.
@@ -231,7 +231,7 @@ YouTube may block audio streaming without cookies. If music playback fails, expo
 | `/ai-playlist <prompt>` | Generate a playlist with AI (e.g. "chill lo-fi for studying") |
 | `/autoplay` | Toggle autoplay - automatically add similar tracks when queue ends |
 
-The music player features a persistent Now Playing embed with interactive buttons (pause/resume, skip, stop, loop, shuffle, autoplay) and a dropdown menu for audio filters. The Now Playing also displays the upcoming queue. Queue state is saved to SQLite and auto-resumes after bot restart. The bot auto-disconnects after 5 minutes of inactivity. If Lavalink is not running, music commands are gracefully disabled with a clear message.
+The music player features a persistent Now Playing embed with interactive buttons (pause/resume, skip, stop, loop, shuffle, autoplay) and a dropdown menu for audio filters. The Now Playing also displays the upcoming queue with source-specific colors (orange for SoundCloud, green for Spotify, red for YouTube). Queue state is saved to SQLite and auto-resumes after bot restart. The bot auto-disconnects after 5 minutes of inactivity. If Lavalink is not running, music commands are gracefully disabled with a clear message. SoundCloud is used as the primary streaming source with YouTube as fallback.
 
 ### AI
 

@@ -2,6 +2,24 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.3.0] - 2026-04-05
+
+### Music — SoundCloud-first streaming
+- **SoundCloud as primary streaming source** — YouTube streaming is currently broken globally (login required), SoundCloud is used as the primary source with YouTube as fallback
+- **LavaSrc plugin** added alongside youtube-plugin for extended source support
+- Auto-detect actual streaming source (SoundCloud, YouTube, Spotify) from Lavalink track info
+- Correct source labels and colors in Now Playing embed (orange for SoundCloud, green for Spotify, red for YouTube)
+- Autoplay now searches SoundCloud first for similar tracks
+- Spotify resolution uses SoundCloud streaming instead of YouTube
+- `resolveSpotifyTrack` replaces deprecated `spotifyTrackToYT`
+- Playlist resolution auto-detects source per track
+
+### Misc
+- Prevent bot crashes from unhandled promise rejections
+- Fix OLLAMA_KEEP_ALIVE=-1 sending invalid duration string
+
+---
+
 ## [2.2.2] - 2026-04-05
 
 ### Fun

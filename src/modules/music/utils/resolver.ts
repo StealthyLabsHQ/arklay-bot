@@ -37,8 +37,24 @@ function getNode() {
   return node;
 }
 
-function trackFromLavalink(lt: LavalinkTrack, source: string, requestedBy: string): Track {
+function detectLavalinkSource(lt: LavalinkTrack): string {
+  const name = (lt.info as Record<string, unknown>).sourceName as string | undefined;
+  if (name) {
+    const n = name.toLowerCase();
+    if (n.includes('soundcloud')) return 'soundcloud';
+    if (n.includes('youtube'))    return 'youtube';
+    if (n.includes('spotify'))    return 'spotify';
+    return n;
+  }
+  const uri = lt.info.uri ?? '';
+  if (uri.includes('soundcloud.com')) return 'soundcloud';
+  if (uri.includes('youtube.com') || uri.includes('youtu.be')) return 'youtube';
+  return 'unknown';
+}
+
+function trackFromLavalink(lt: LavalinkTrack, sourceOverride: string | null, requestedBy: string): Track {
   const duration = lt.info.length ? Math.floor(lt.info.length / 1000) : null;
+  const source = sourceOverride ?? detectLavalinkSource(lt);
   return {
     title:       lt.info.title,
     artist:      lt.info.author ?? null,
@@ -53,12 +69,12 @@ function trackFromLavalink(lt: LavalinkTrack, source: string, requestedBy: strin
   };
 }
 
-async function resolveViaLavalink(query: string, source: string, requestedBy: string): Promise<Track> {
+async function resolveViaLavalink(query: string, source: string | null, requestedBy: string): Promise<Track> {
   const node = getNode();
   const isUrl = /^https?:\/\//i.test(query);
 
-  // Try multiple search prefixes — ytmsearch works with MUSIC/WEB_REMIX clients
-  const searchPrefixes = isUrl ? [query] : [`ytmsearch:${query}`, `ytsearch:${query}`];
+  // SoundCloud first (YouTube is currently broken), then YouTube as fallback
+  const searchPrefixes = isUrl ? [query] : [`scsearch:${query}`, `ytmsearch:${query}`, `ytsearch:${query}`];
 
   let result: Awaited<ReturnType<typeof node.rest.resolve>> | null = null;
   for (const search of searchPrefixes) {
@@ -93,7 +109,7 @@ async function resolvePlaylist(url: string, requestedBy: string): Promise<Track[
   }
 
   const playlist = result.data as { tracks: LavalinkTrack[] };
-  return playlist.tracks.map((lt) => trackFromLavalink(lt, 'youtube', requestedBy));
+  return playlist.tracks.map((lt) => trackFromLavalink(lt, null, requestedBy));
 }
 
 // ── Spotify ───────────────────────────────────────────────────────────────────
@@ -138,20 +154,23 @@ interface SpotifyTrackRaw {
   album?: { name?: string; images?: Array<{ url: string }> };
 }
 
-export async function spotifyTrackToYT(raw: SpotifyTrackRaw, requestedBy: string): Promise<Track> {
+export async function resolveSpotifyTrack(raw: SpotifyTrackRaw, requestedBy: string): Promise<Track> {
   const artist   = raw.artists?.[0]?.name ?? '';
   const query    = `${artist} ${raw.name}`.trim();
   const albumArt = raw.album?.images?.[0]?.url ?? null;
-  const yt       = await resolveViaLavalink(query, 'youtube', requestedBy);
+  const resolved = await resolveViaLavalink(query, null, requestedBy);
   return {
-    ...yt,
+    ...resolved,
     title:     `${artist ? artist + ' - ' : ''}${raw.name}`,
-    artist:    artist || yt.artist,
+    artist:    artist || resolved.artist,
     album:     raw.album?.name ?? null,
-    thumbnail: albumArt ?? yt.thumbnail,
+    thumbnail: albumArt ?? resolved.thumbnail,
     source:    'spotify',
   };
 }
+
+/** @deprecated Use resolveSpotifyTrack instead */
+export const spotifyTrackToYT = resolveSpotifyTrack;
 
 function hasSpotifyCredentials(): boolean {
   return !!(process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET);
@@ -164,11 +183,11 @@ async function spotifyTrackViaOEmbed(url: string, requestedBy: string): Promise<
   if (!res.ok) throw new Error(`Spotify oEmbed failed: ${res.status}`);
   const data = await res.json() as SpotifyOEmbed;
   const title = data.title ?? 'Unknown track';
-  const yt = await resolveViaLavalink(title, 'youtube', requestedBy);
+  const resolved = await resolveViaLavalink(title, null, requestedBy);
   return {
-    ...yt,
+    ...resolved,
     title,
-    thumbnail: data.thumbnail_url ?? yt.thumbnail,
+    thumbnail: data.thumbnail_url ?? resolved.thumbnail,
     source: 'spotify',
   };
 }
@@ -184,15 +203,15 @@ export interface ResolveResult {
 export async function resolve(query: string, requestedBy: string): Promise<ResolveResult> {
   const src = detectSource(query);
 
-  if (src === 'youtube')    return { tracks: [await resolveViaLavalink(query, 'youtube', requestedBy)],    isPlaylist: false };
-  if (src === 'soundcloud') return { tracks: [await resolveViaLavalink(query, 'soundcloud', requestedBy)], isPlaylist: false };
-  if (src === 'search')     return { tracks: [await resolveViaLavalink(query, 'search', requestedBy)],     isPlaylist: false };
+  if (src === 'youtube')    return { tracks: [await resolveViaLavalink(query, null, requestedBy)],    isPlaylist: false };
+  if (src === 'soundcloud') return { tracks: [await resolveViaLavalink(query, null, requestedBy)], isPlaylist: false };
+  if (src === 'search')     return { tracks: [await resolveViaLavalink(query, null, requestedBy)],     isPlaylist: false };
 
   if (src === 'spotify_track') {
     if (hasSpotifyCredentials()) {
       const [, id] = query.match(SPOTIFY_REGEX.track)!;
       const raw    = await spotifyGet<SpotifyTrackRaw>(`/tracks/${id!}`);
-      return { tracks: [await spotifyTrackToYT(raw, requestedBy)], isPlaylist: false };
+      return { tracks: [await resolveSpotifyTrack(raw, requestedBy)], isPlaylist: false };
     }
     return { tracks: [await spotifyTrackViaOEmbed(query, requestedBy)], isPlaylist: false };
   }
@@ -220,7 +239,7 @@ export async function resolve(query: string, requestedBy: string): Promise<Resol
     return { tracks, isPlaylist: true, playlistTitle: info.name ?? 'Spotify Album' };
   }
 
-  return { tracks: [await resolveViaLavalink(query, 'search', requestedBy)], isPlaylist: false };
+  return { tracks: [await resolveViaLavalink(query, null, requestedBy)], isPlaylist: false };
 }
 
 interface SpotifyPlaylistPage { next?: string; items?: Array<{ track: SpotifyTrackRaw }> }
@@ -258,7 +277,7 @@ async function resolveSpotifyBatch(items: SpotifyTrackRaw[], requestedBy: string
   for (let i = 0; i < items.length; i += CHUNK) {
     const chunk    = items.slice(i, i + CHUNK);
     const resolved = await Promise.allSettled(
-      chunk.map((t) => spotifyTrackToYT(t, requestedBy))
+      chunk.map((t) => resolveSpotifyTrack(t, requestedBy))
     );
     for (const r of resolved) {
       if (r.status === 'fulfilled') results.push(r.value);
