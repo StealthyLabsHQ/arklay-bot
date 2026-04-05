@@ -76,6 +76,14 @@ const aiplaylist: CommandDef = {
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    // Temporarily disabled — YouTube streaming is broken and SoundCloud has limited catalogue
+    await interaction.reply({
+      content: 'AI Playlist is temporarily unavailable. YouTube streaming is currently broken globally and SoundCloud has a limited music catalogue. Use `/play <song>` to add tracks manually. This feature will return when YouTube is fixed.',
+      ephemeral: true,
+    });
+    return;
+    /*
+    // ── DISABLED: Re-enable when YouTube streaming is fixed ──────────────
     await interaction.deferReply();
 
     const member = interaction.member as GuildMember;
@@ -216,6 +224,7 @@ const aiplaylist: CommandDef = {
     collector.on('end', () => {
       interaction.editReply({ components: [] }).catch(() => undefined);
     });
+    */
   },
 };
 
