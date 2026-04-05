@@ -160,8 +160,8 @@ const localai: CommandDef = {
             await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
             return;
           }
-          if (file.size > 50_000) {
-            await interaction.reply({ content: 'File too large (max 50KB).', ephemeral: true });
+          if (file.size > 1_000_000) {
+            await interaction.reply({ content: 'File too large (max 1MB).', ephemeral: true });
             return;
           }
           const res = await fetch(file.url);
