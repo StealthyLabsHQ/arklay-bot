@@ -1,6 +1,7 @@
-import ytDlp from 'yt-dlp-exec';
+import type { Track as LavalinkTrack } from 'shoukaku';
 import type { Track } from '../structures/GuildQueue';
 import { formatDuration } from '../structures/GuildQueue';
+import { getShoukaku } from '../../../services/lavalink';
 
 // ── Source detection ──────────────────────────────────────────────────────────
 
@@ -17,7 +18,6 @@ type Source =
   | 'search';
 
 function detectSource(input: string): Source {
-  // YouTube watch URL with list= param (Mix, playlist link) → treat as playlist
   if (/youtube\.com\/watch.*[?&]list=/i.test(input))        return 'youtube_playlist';
   if (/youtu\.be\/|youtube\.com\/watch/i.test(input))       return 'youtube';
   if (/youtube\.com\/playlist\?list=/i.test(input))         return 'youtube_playlist';
@@ -28,103 +28,72 @@ function detectSource(input: string): Source {
   return 'search';
 }
 
-// ── yt-dlp helpers ────────────────────────────────────────────────────────────
+// ── Lavalink helpers ─────────────────────────────────────────────────────────
 
-interface YtDlpEntry {
-  id?: string;
-  title?: string;
-  url?: string;
-  webpage_url?: string;
-  duration?: number;
-  thumbnail?: string;
-  thumbnails?: Array<{ url: string }>;
-  channel?: string;
-  uploader?: string;
-  artist?: string;
-  album?: string;
-  upload_date?: string; // "YYYYMMDD"
-  entries?: YtDlpEntry[];
-  ie_key?: string;
+function getNode() {
+  const shoukaku = getShoukaku();
+  const node = shoukaku.options.nodeResolver(shoukaku.nodes);
+  if (!node) throw new Error('No Lavalink node available');
+  return node;
 }
 
-import { existsSync } from 'fs';
-import path from 'path';
-
-const COOKIES_FILE = path.join(process.cwd(), 'cookies.txt');
-
-const YT_DLP_BASE = {
-  dumpSingleJson: true,
-  noCheckCertificates: true,
-  noWarnings: true,
-  preferFreeFormats: true,
-  addHeader: ['referer:youtube.com', 'user-agent:Mozilla/5.0'],
-} as const;
-
-function getYtDlpOpts(withAudioUrl: boolean): Record<string, unknown> {
-  const opts: Record<string, unknown> = { ...YT_DLP_BASE };
-  if (withAudioUrl) {
-    opts['format'] = 'bestaudio[abr>=192]/bestaudio[acodec=opus]/bestaudio/best';
-  }
-  if (existsSync(COOKIES_FILE)) opts['cookies'] = COOKIES_FILE;
-  return opts;
-}
-
-function trackFromYtDlp(data: YtDlpEntry, source: string, requestedBy: string): Track {
-  const duration = data.duration ?? null;
-  const webpageUrl =
-    data.webpage_url ??
-    (data.id ? `https://www.youtube.com/watch?v=${data.id}` : null) ??
-    data.url ??
-    '';
-  // If yt-dlp returned a direct audio URL, store it in audioUrl for instant playback
-  const directAudioUrl = data.url && data.url !== webpageUrl ? data.url : null;
-  const artist = data.artist ?? data.channel ?? data.uploader ?? null;
-  const uploadDate = data.upload_date
-    ? `${data.upload_date.slice(0, 4)}-${data.upload_date.slice(4, 6)}-${data.upload_date.slice(6, 8)}`
-    : null;
-
+function trackFromLavalink(lt: LavalinkTrack, source: string, requestedBy: string): Track {
+  const duration = lt.info.length ? Math.floor(lt.info.length / 1000) : null;
   return {
-    title:       data.title     ?? 'Unknown title',
-    artist,
-    album:       data.album     ?? null,
-    uploadDate,
-    url:         webpageUrl,
-    playUrl:     webpageUrl,
-    audioUrl:    directAudioUrl,
+    title:       lt.info.title,
+    artist:      lt.info.author ?? null,
+    url:         lt.info.uri ?? '',
+    playUrl:     lt.info.uri ?? '',
+    encoded:     lt.encoded,
     duration,
     durationStr: formatDuration(duration),
-    thumbnail:   data.thumbnail ?? data.thumbnails?.[0]?.url ?? null,
+    thumbnail:   lt.info.artworkUrl ?? null,
     source,
     requestedBy,
   };
 }
 
-async function resolveViaYtDlp(query: string, source: string, requestedBy: string, withAudioUrl = true): Promise<Track> {
-  const isUrl  = /^https?:\/\//i.test(query);
-  const target = isUrl ? query : `ytsearch1:${query}`;
-  const info   = await (ytDlp as unknown as (url: string, opts: object) => Promise<YtDlpEntry>)(target, getYtDlpOpts(withAudioUrl));
-  const data   = info.entries?.length ? info.entries[0]! : info;
-  if (!data || (!data.title && !data.url && !data.id)) {
+async function resolveViaLavalink(query: string, source: string, requestedBy: string): Promise<Track> {
+  const node = getNode();
+  const isUrl = /^https?:\/\//i.test(query);
+
+  // Try multiple search prefixes — ytmsearch works with MUSIC/WEB_REMIX clients
+  const searchPrefixes = isUrl ? [query] : [`ytmsearch:${query}`, `ytsearch:${query}`];
+
+  let result: Awaited<ReturnType<typeof node.rest.resolve>> | null = null;
+  for (const search of searchPrefixes) {
+    result = await node.rest.resolve(search);
+    if (result && result.loadType !== 'empty' && result.loadType !== 'error') break;
+    result = null;
+  }
+
+  if (!result) {
     throw new Error(`No results found for: ${query}`);
   }
-  return trackFromYtDlp(data, source, requestedBy);
+
+  let lt: LavalinkTrack | undefined;
+  if (result.loadType === 'track') {
+    lt = result.data as LavalinkTrack;
+  } else if (result.loadType === 'search') {
+    lt = (result.data as LavalinkTrack[])[0];
+  } else if (result.loadType === 'playlist') {
+    lt = (result.data as { tracks: LavalinkTrack[] }).tracks[0];
+  }
+
+  if (!lt) throw new Error(`No results found for: ${query}`);
+  return trackFromLavalink(lt, source, requestedBy);
 }
 
-async function resolveYoutubePlaylist(url: string, requestedBy: string): Promise<Track[]> {
-  const info = await (ytDlp as unknown as (url: string, opts: object) => Promise<YtDlpEntry>)(
-    url, { ...YT_DLP_BASE, flatPlaylist: true }
-  );
-  if (!info.entries?.length) throw new Error('Empty or inaccessible playlist.');
-  return info.entries.map((e) => ({
-    title:       e.title       ?? 'Unknown title',
-    url:         e.url         ?? `https://www.youtube.com/watch?v=${e.id}`,
-    playUrl:     e.url         ?? `https://www.youtube.com/watch?v=${e.id}`,
-    duration:    e.duration    ?? null,
-    durationStr: formatDuration(e.duration ?? null),
-    thumbnail:   e.thumbnails?.[0]?.url ?? null,
-    source:      'youtube',
-    requestedBy,
-  }));
+async function resolvePlaylist(url: string, requestedBy: string): Promise<Track[]> {
+  const node = getNode();
+  const result = await node.rest.resolve(url);
+
+  if (!result || result.loadType !== 'playlist') {
+    throw new Error('Empty or inaccessible playlist.');
+  }
+
+  const playlist = result.data as { tracks: LavalinkTrack[] };
+  return playlist.tracks.map((lt) => trackFromLavalink(lt, 'youtube', requestedBy));
 }
 
 // ── Spotify ───────────────────────────────────────────────────────────────────
@@ -166,19 +135,21 @@ interface SpotifyTrackRaw {
   name: string;
   artists?: Array<{ name: string }>;
   duration_ms?: number;
-  album?: { images?: Array<{ url: string }> };
+  album?: { name?: string; images?: Array<{ url: string }> };
 }
 
-export async function spotifyTrackToYT(raw: SpotifyTrackRaw, requestedBy: string, withAudioUrl = true): Promise<Track> {
+export async function spotifyTrackToYT(raw: SpotifyTrackRaw, requestedBy: string): Promise<Track> {
   const artist   = raw.artists?.[0]?.name ?? '';
   const query    = `${artist} ${raw.name}`.trim();
   const albumArt = raw.album?.images?.[0]?.url ?? null;
-  const yt       = await resolveViaYtDlp(query, 'youtube', requestedBy, withAudioUrl);
+  const yt       = await resolveViaLavalink(query, 'youtube', requestedBy);
   return {
     ...yt,
-    title:    `${artist ? artist + ' - ' : ''}${raw.name}`,
+    title:     `${artist ? artist + ' - ' : ''}${raw.name}`,
+    artist:    artist || yt.artist,
+    album:     raw.album?.name ?? null,
     thumbnail: albumArt ?? yt.thumbnail,
-    source:   'spotify',
+    source:    'spotify',
   };
 }
 
@@ -193,7 +164,7 @@ async function spotifyTrackViaOEmbed(url: string, requestedBy: string): Promise<
   if (!res.ok) throw new Error(`Spotify oEmbed failed: ${res.status}`);
   const data = await res.json() as SpotifyOEmbed;
   const title = data.title ?? 'Unknown track';
-  const yt = await resolveViaYtDlp(title, 'youtube', requestedBy);
+  const yt = await resolveViaLavalink(title, 'youtube', requestedBy);
   return {
     ...yt,
     title,
@@ -213,9 +184,9 @@ export interface ResolveResult {
 export async function resolve(query: string, requestedBy: string): Promise<ResolveResult> {
   const src = detectSource(query);
 
-  if (src === 'youtube')    return { tracks: [await resolveViaYtDlp(query, 'youtube', requestedBy)],    isPlaylist: false };
-  if (src === 'soundcloud') return { tracks: [await resolveViaYtDlp(query, 'soundcloud', requestedBy)], isPlaylist: false };
-  if (src === 'search')     return { tracks: [await resolveViaYtDlp(query, 'search', requestedBy)],     isPlaylist: false };
+  if (src === 'youtube')    return { tracks: [await resolveViaLavalink(query, 'youtube', requestedBy)],    isPlaylist: false };
+  if (src === 'soundcloud') return { tracks: [await resolveViaLavalink(query, 'soundcloud', requestedBy)], isPlaylist: false };
+  if (src === 'search')     return { tracks: [await resolveViaLavalink(query, 'search', requestedBy)],     isPlaylist: false };
 
   if (src === 'spotify_track') {
     if (hasSpotifyCredentials()) {
@@ -223,12 +194,11 @@ export async function resolve(query: string, requestedBy: string): Promise<Resol
       const raw    = await spotifyGet<SpotifyTrackRaw>(`/tracks/${id!}`);
       return { tracks: [await spotifyTrackToYT(raw, requestedBy)], isPlaylist: false };
     }
-    // Fallback: oEmbed (no API key needed)
     return { tracks: [await spotifyTrackViaOEmbed(query, requestedBy)], isPlaylist: false };
   }
 
   if (src === 'youtube_playlist') {
-    const tracks = await resolveYoutubePlaylist(query, requestedBy);
+    const tracks = await resolvePlaylist(query, requestedBy);
     return { tracks, isPlaylist: true, playlistTitle: 'YouTube Playlist' };
   }
 
@@ -250,7 +220,7 @@ export async function resolve(query: string, requestedBy: string): Promise<Resol
     return { tracks, isPlaylist: true, playlistTitle: info.name ?? 'Spotify Album' };
   }
 
-  return { tracks: [await resolveViaYtDlp(query, 'search', requestedBy)], isPlaylist: false };
+  return { tracks: [await resolveViaLavalink(query, 'search', requestedBy)], isPlaylist: false };
 }
 
 interface SpotifyPlaylistPage { next?: string; items?: Array<{ track: SpotifyTrackRaw }> }
@@ -258,7 +228,7 @@ interface SpotifyAlbumPage   { next?: string; items?: SpotifyTrackRaw[] }
 
 async function resolveSpotifyPlaylistTracks(id: string): Promise<SpotifyTrackRaw[]> {
   const tracks: SpotifyTrackRaw[] = [];
-  let url: string | null = `/playlists/${id}/tracks?limit=100&fields=next,items(track(name,artists,duration_ms,album(images)))`;
+  let url: string | null = `/playlists/${id}/tracks?limit=100&fields=next,items(track(name,artists,duration_ms,album(name,images)))`;
   while (url) {
     const page: SpotifyPlaylistPage = await spotifyGet<SpotifyPlaylistPage>(url);
     for (const item of page.items ?? []) {
@@ -287,9 +257,8 @@ async function resolveSpotifyBatch(items: SpotifyTrackRaw[], requestedBy: string
   const CHUNK = 5;
   for (let i = 0; i < items.length; i += CHUNK) {
     const chunk    = items.slice(i, i + CHUNK);
-    // Only resolve audio URL for the very first track (instant playback), rest = metadata only (pre-fetch handles them)
     const resolved = await Promise.allSettled(
-      chunk.map((t, j) => spotifyTrackToYT(t, requestedBy, i === 0 && j === 0))
+      chunk.map((t) => spotifyTrackToYT(t, requestedBy))
     );
     for (const r of resolved) {
       if (r.status === 'fulfilled') results.push(r.value);

@@ -12,12 +12,9 @@ function getQueue(interaction: ChatInputCommandInteraction) {
 /** Returns true if the user is in the same voice channel as the bot (or the bot is not connected). */
 function isInBotVoice(interaction: ChatInputCommandInteraction): boolean {
   const queue = getQueue(interaction);
-  if (!queue?.connection) return true; // bot not connected - allow
+  if (!queue?.voiceChannelId) return true;
   const member = interaction.member as GuildMember;
-  const userChannelId = member.voice.channelId;
-  const botChannelId = (queue.connection as unknown as { joinConfig: { channelId: string } }).joinConfig
-    .channelId;
-  return userChannelId === botChannelId;
+  return member.voice.channelId === queue.voiceChannelId;
 }
 
 export const pause: CommandDef = {

@@ -12,6 +12,10 @@ const envSchema = z.object({
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_REGION: z.string().default('us-east5'),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
+  // Lavalink
+  LAVALINK_HOST: z.string().default('localhost:2333'),
+  LAVALINK_PASSWORD: z.string().default('youshallnotpass'),
+  LAVALINK_SECURE: z.coerce.boolean().default(false),
   BOT_OWNER_ID: z.string().optional(),
   BOT_OWNER_MULTIPLIER: z.coerce.number().min(0).max(20).default(5),
   BOT_PREFIX: z.string().default('.'),

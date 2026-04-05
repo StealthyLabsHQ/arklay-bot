@@ -41,7 +41,7 @@ const meme: CommandDef = {
       }
 
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'ArklayBot/1.0' },
+        headers: { 'User-Agent': 'DiscordBot/1.0' },
       });
       const json = await res.json() as { data: { children: Array<{ data: RedditPost }> } };
 

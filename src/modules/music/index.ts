@@ -5,6 +5,7 @@ import type { BotModule } from '../../types';
 import { logger } from '../../services/logger';
 import { getQueues } from '../../services/musicQueue';
 import { loadAllQueueStates, deleteQueueState } from '../../services/musicResume';
+import { waitForLavalink } from '../../services/lavalink';
 import { GuildQueue } from './structures/GuildQueue';
 import play from './commands/play';
 import { pause, resume, skip, stop, queue } from './commands/controls';
@@ -36,6 +37,14 @@ const musicModule: BotModule = {
     client.once(Events.ClientReady, async () => {
       const states = loadAllQueueStates();
       if (states.length === 0) return;
+
+      try {
+        await waitForLavalink();
+      } catch {
+        logger.warn('music: Lavalink not ready, skipping queue restore');
+        return;
+      }
+
       logger.info('music: restoring %d queue(s) from previous session', states.length);
 
       for (const state of states) {
@@ -55,7 +64,7 @@ const musicModule: BotModule = {
           getQueues().set(state.guildId, q);
 
           const me = guild.members.me;
-          if (me) q.connect(voiceChannel, me);
+          if (me) await q.connect(voiceChannel, me);
 
           if (q.tracks.length > 0) {
             q.playNext().catch((err) => logger.error({ err }, 'music: auto-resume playNext failed for %s', state.guildId));

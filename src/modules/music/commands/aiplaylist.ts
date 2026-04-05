@@ -135,7 +135,7 @@ const aiplaylist: CommandDef = {
       getQueues().set(guildId, queue);
     }
 
-    queue.connect(voiceChannel, member);
+    await queue.connect(voiceChannel, member);
 
     // Resolve songs in parallel batches for speed
     const requestedBy = `<@${interaction.user.id}>`;

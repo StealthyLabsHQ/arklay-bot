@@ -60,7 +60,7 @@ const botinfo: CommandDef = {
       new ButtonBuilder()
         .setLabel('GitHub')
         .setStyle(ButtonStyle.Link)
-        .setURL('https://github.com/StealthyLabsHQ/arklay-bot')
+        .setURL('https://github.com/StealthyLabsHQ')
         .setEmoji('\uD83D\uDCBB'),
       new ButtonBuilder()
         .setLabel('X (ex-Twitter)')

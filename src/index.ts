@@ -9,8 +9,10 @@ import { client } from './core/client';
 import { loadModules } from './core/loader';
 import { registerHandler } from './core/handler';
 import { logger } from './services/logger';
+import { initLavalink } from './services/lavalink';
 
 (async () => {
+  initLavalink(client);
   const modules = await loadModules(client);
   registerHandler(client, modules);
   await client.login(config.DISCORD_TOKEN);

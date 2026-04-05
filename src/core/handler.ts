@@ -3,16 +3,19 @@ import { Events, ActivityType, OAuth2Scopes, PermissionFlagsBits } from 'discord
 import type { BotModule } from '../types';
 import { logger } from '../services/logger';
 import { config } from '../services/config';
+import { isLavalinkReady } from '../services/lavalink';
 import { TextInteractionAdapter, MissingArgError } from './textAdapter';
 
 export function registerHandler(client: Client, modules: Map<string, BotModule>): void {
   // Build a flat command lookup: commandName → execute fn
   const commandMap = new Map<string, BotModule['commands'][number]['execute']>();
   const contextMenuMap = new Map<string, (interaction: MessageContextMenuCommandInteraction) => Promise<void>>();
+  const musicCommands = new Set<string>();
 
   for (const mod of modules.values()) {
     for (const cmd of mod.commands) {
       commandMap.set(cmd.data.name, cmd.execute);
+      if (mod.name === 'music') musicCommands.add(cmd.data.name);
     }
     for (const ctx of mod.contextMenus ?? []) {
       contextMenuMap.set(ctx.data.name, ctx.execute);
@@ -57,6 +60,11 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
       { guildId: interaction.guildId, userId: interaction.user.id, command: interaction.commandName },
       'cmd'
     );
+
+    if (musicCommands.has(interaction.commandName) && !isLavalinkReady()) {
+      await interaction.reply({ content: 'Music is currently unavailable — Lavalink server is not running.', ephemeral: true });
+      return;
+    }
 
     try {
       await execute(interaction);
@@ -106,6 +114,11 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
 
     const execute = commandMap.get(cmdName);
     if (!execute || TEXT_BLACKLIST.has(cmdName)) return;
+
+    if (musicCommands.has(cmdName) && !isLavalinkReady()) {
+      await message.channel.send('Music is currently unavailable — Lavalink server is not running.').catch(() => undefined);
+      return;
+    }
 
     logger.info(
       { guildId: message.guildId, userId: message.author.id, command: cmdName },

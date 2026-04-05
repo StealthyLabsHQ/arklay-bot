@@ -2,8 +2,7 @@
 
 ![discord bot](https://github.com/user-attachments/assets/98355e27-94c3-4dde-9129-cad3053cb86f)
 
-
-A modular, open-source Discord bot built with TypeScript, discord.js v14, and Node.js. Arklay combines music playback, AI-powered commands (Claude + Gemini), image generation, server moderation, and utility tools into a single bot.
+A modular Discord bot built with TypeScript, discord.js v14, and Node.js. Arklay combines music playback, AI-powered commands (Claude + Gemini), image generation, server moderation, and utility tools into a single bot.
 
 Built by [StealthyLabs](https://stealthylabs.eu).
 
@@ -28,7 +27,7 @@ Magic 8-ball, random choice, coin flip, dice rolls, trivia (with AI category), R
 Auto-role, welcome messages, mod log channel, temporary voice channels, AI auto-moderation, and server language.
 
 **Text Prefix Commands**
-All commands work with text prefix (`.play`, `arklay ask`, etc.). Both prefix and bot name are configurable via `.env`.
+All commands work with text prefix (`.play`, `specter ask`, etc.). Both prefix and bot name are configurable via `.env`.
 
 **Context Menus**
 Right-click a message to steal its sticker.
@@ -36,24 +35,101 @@ Right-click a message to steal its sticker.
 ## Requirements
 
 - Node.js 20+ (tested on Node 24)
-- ffmpeg (for music playback)
+- Java 17+ and [Lavalink](https://github.com/lavalink-devs/Lavalink) (for music playback — optional, bot runs without it but music is disabled)
 - A Discord bot token and application
 - Optional: Anthropic API key (Claude), Google AI API key (Gemini), Spotify client credentials
 
-### ffmpeg
+### Lavalink (required for music)
 
-The bot needs ffmpeg for music playback. It checks for ffmpeg in this order:
-1. System `ffmpeg` in your PATH (recommended)
-2. `ffmpeg-static` npm package (bundled, but may not work on all platforms)
+The music module uses Lavalink, a standalone audio server. Lavalink handles YouTube/SoundCloud streaming, audio filters, and seeking — the bot itself does no audio processing.
 
-To install ffmpeg system-wide:
-- **Windows**: Download from [gyan.dev/ffmpeg](https://www.gyan.dev/ffmpeg/builds/) (essentials build), extract, and add the `bin` folder to your PATH
-- **Linux**: `sudo apt install ffmpeg` (Debian/Ubuntu) or `sudo dnf install ffmpeg` (Fedora)
-- **macOS**: `brew install ffmpeg`
+#### Install Java
 
-If `ffmpeg-static` works on your platform, no extra install is needed.
+**Ubuntu/Debian (OVH, Hetzner, etc.):**
+```bash
+sudo apt update
+sudo apt install openjdk-17-jre-headless -y
+java -version  # verify
+```
 
-## Setup
+**Fedora/RHEL:**
+```bash
+sudo dnf install java-17-openjdk-headless -y
+```
+
+**Windows:**
+Download from [adoptium.net](https://adoptium.net/) (Temurin 21 LTS) and install. During installation, check **"Add to PATH"** and **"Set JAVA_HOME"**. Close and reopen your terminal after installing.
+
+**macOS:**
+```bash
+brew install openjdk@17
+```
+
+#### Install & Run Lavalink
+
+```bash
+mkdir lavalink && cd lavalink
+# Download latest Lavalink.jar
+wget https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar
+# Copy the config template from the bot project
+cp ../lavalink/application.yml .
+# Run Lavalink
+java -jar Lavalink.jar
+```
+
+For production, run Lavalink as a service:
+```bash
+# With PM2
+pm2 start "java -jar Lavalink.jar" --name lavalink --cwd /path/to/lavalink
+pm2 save
+
+# Or with systemd
+sudo tee /etc/systemd/system/lavalink.service << 'EOF'
+[Unit]
+Description=Lavalink Audio Server
+After=network.target
+
+[Service]
+User=your-user
+WorkingDirectory=/path/to/lavalink
+ExecStart=/usr/bin/java -jar Lavalink.jar
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable lavalink --now
+```
+
+The bot connects to Lavalink via `LAVALINK_HOST` in `.env` (default: `localhost:2333`).
+
+## Quick Start (for beginners)
+
+```bash
+# 1. Clone the project
+git clone https://github.com/StealthyLabsHQ/arklay-bot.git
+cd arklay-bot
+npm install
+
+# 2. Create your config file
+cp .env.example .env
+# Edit .env → add DISCORD_TOKEN and CLIENT_ID (minimum required)
+
+# 3. Register slash commands with Discord
+npm run deploy
+
+# 4. Start the bot (without music)
+npm run dev
+
+# 5. (Optional) For music: install Java, download Lavalink.jar into lavalink/, then:
+cd lavalink && java -jar Lavalink.jar   # in a separate terminal
+cd .. && npm run dev                     # restart the bot
+```
+
+The bot works without Lavalink — music commands will simply show "Lavalink server is not running". All other features (AI, moderation, utility, fun) work independently.
+
+## Setup (detailed)
 
 ### 1. Clone and install
 
@@ -76,6 +152,9 @@ Edit `.env` and fill in your values:
 | `DISCORD_TOKEN` | Yes | Bot token from Discord Developer Portal |
 | `CLIENT_ID` | Yes | Application ID from Discord Developer Portal |
 | `GUILD_ID` | No | Dev server ID for instant command deployment |
+| `LAVALINK_HOST` | No | Lavalink server address (default `localhost:2333`) |
+| `LAVALINK_PASSWORD` | No | Lavalink password (default `youshallnotpass`) |
+| `LAVALINK_SECURE` | No | Use WSS instead of WS (default `false`) |
 | `BOT_OWNER_ID` | No | Your Discord user ID (gets boosted AI limits) |
 | `BOT_OWNER_MULTIPLIER` | No | Owner limit multiplier 0-20 (default 5) |
 | `BOT_PREFIX` | No | Text command prefix (default `.`) |
@@ -148,7 +227,7 @@ YouTube may block audio streaming without cookies. If music playback fails, expo
 | `/ai-playlist <prompt>` | Generate a playlist with AI (e.g. "chill lo-fi for studying") |
 | `/autoplay` | Toggle autoplay - automatically add similar tracks when queue ends |
 
-The music player features a persistent Now Playing embed with interactive buttons (pause/resume, skip, stop, loop, shuffle). Queue state is saved to SQLite and auto-resumes after bot restart. The bot auto-disconnects after 5 minutes of inactivity.
+The music player features a persistent Now Playing embed with interactive buttons (pause/resume, skip, stop, loop, shuffle, autoplay) and a dropdown menu for audio filters. The Now Playing also displays the upcoming queue. Queue state is saved to SQLite and auto-resumes after bot restart. The bot auto-disconnects after 5 minutes of inactivity. If Lavalink is not running, music commands are gracefully disabled with a clear message.
 
 ### AI
 
@@ -186,7 +265,7 @@ The music player features a persistent Now Playing embed with interactive button
 | Command | Description |
 |---|---|
 | `/help [command]` | Interactive help center with dropdown categories and command details |
-| `/botinfo` | About the bot — developer, stats, and social links |
+| `/botinfo` | About Arklay — developer, stats, and social links |
 | `/ping` | Bot latency |
 | `/userinfo [user]` | User information (status, badges, roles, permissions, activity) |
 | `/serverinfo` | Server statistics |
@@ -254,38 +333,39 @@ Both the prefix (`.`) and bot name (`arklay`) are configurable via `BOT_PREFIX` 
 
 ```
 src/
-  index.ts              Entry point
-  core/
-    client.ts           Discord.js client
-    loader.ts           Dynamic module loader
-    handler.ts          Interaction router (slash + context menus + text prefix)
-    deploy.ts           Slash command deployment
-    textAdapter.ts      Text message → interaction adapter
-  modules/
-    music/              Music player module
-    ai/                 AI providers + commands
-    moderation/         Mod tools + help
-    utility/            Info + tools + context menus
-    fun/                Games + entertainment
-    configuration/      Server settings + event listeners
-  services/
-    db.ts               SQLite singleton (better-sqlite3, WAL mode)
-    logger.ts           Pino logger
-    config.ts           Zod env validation
-    permissions.ts      Bot admin role system
-    rateLimit.ts        Per-user cooldowns
-    usageLimit.ts       Daily request limits (owner gets configurable multiplier)
-    aiConfig.ts         Per-user AI model selection
-    imageConfig.ts      Per-user image generation settings
-    warnings.ts         Warning system
-    guildConfig.ts      Server configuration (autorole, welcome, logs, tempvc, automod, language)
-    database.ts         Conversation history
-    musicQueue.ts       Shared music queue map
-    musicResume.ts      Queue persistence for auto-resume
-    ai/
-      anthropic.ts      Claude provider
-      google.ts         Gemini provider
-      router.ts         AI provider router
+├── index.ts                    Entry point
+├── core/
+│   ├── client.ts               Discord.js client
+│   ├── loader.ts               Dynamic module loader
+│   ├── handler.ts              Interaction router (slash + context menus + text prefix)
+│   ├── deploy.ts               Slash command deployment
+│   └── textAdapter.ts          Text message → interaction adapter
+├── modules/
+│   ├── music/                  Music player module (Lavalink + Shoukaku)
+│   ├── ai/                     AI providers + commands
+│   ├── moderation/             Mod tools + help
+│   ├── utility/                Info + tools + context menus
+│   ├── fun/                    Games + entertainment
+│   └── configuration/          Server settings + event listeners
+└── services/
+    ├── lavalink.ts             Lavalink/Shoukaku connection manager
+    ├── db.ts                   SQLite singleton (better-sqlite3, WAL mode)
+    ├── logger.ts               Pino logger
+    ├── config.ts               Zod env validation
+    ├── permissions.ts          Bot admin role system
+    ├── rateLimit.ts            Per-user cooldowns
+    ├── usageLimit.ts           Daily request limits (owner gets configurable multiplier)
+    ├── aiConfig.ts             Per-user AI model selection
+    ├── imageConfig.ts          Per-user image generation settings
+    ├── warnings.ts             Warning system
+    ├── guildConfig.ts          Server configuration (autorole, welcome, logs, tempvc, automod, language)
+    ├── database.ts             Conversation history
+    ├── musicQueue.ts           Shared music queue map
+    ├── musicResume.ts          Queue persistence for auto-resume
+    └── ai/
+        ├── anthropic.ts        Claude provider
+        ├── google.ts           Gemini provider
+        └── router.ts           AI provider router
 ```
 
 Each module is independent and can be enabled/disabled. Modules never import from each other, only from `services/`.

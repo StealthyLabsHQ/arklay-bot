@@ -7,3 +7,6 @@ data/
 *.db-journal
 cookies.txt
 CLAUDE.md
+lavalink/*.jar
+lavalink/plugins/
+lavalink/logs/

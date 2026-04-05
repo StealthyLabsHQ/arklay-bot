@@ -37,8 +37,7 @@ const play: CommandDef = {
       getQueues().set(guildId, queue);
     }
 
-    // Connect synchronously - no Ready-state wait (yt-dlp handles the delay)
-    queue.connect(voiceChannel, member);
+    await queue.connect(voiceChannel, member);
 
     // Resolve track(s)
     let result;
