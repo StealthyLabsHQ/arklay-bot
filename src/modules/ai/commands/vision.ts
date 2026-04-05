@@ -72,11 +72,6 @@ const vision: CommandDef = {
     )
     .addStringOption((opt) =>
       opt.setName('lang').setDescription('Response language').setRequired(false)
-        .addChoices(
-          { name: 'English', value: 'English' }, { name: 'French', value: 'French' },
-          { name: 'Spanish', value: 'Spanish' }, { name: 'German', value: 'German' },
-          { name: 'Japanese', value: 'Japanese' }, { name: 'Korean', value: 'Korean' },
-        )
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {

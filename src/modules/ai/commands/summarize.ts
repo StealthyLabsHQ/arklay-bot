@@ -41,18 +41,6 @@ const summarize: CommandDef = {
         .setName('lang')
         .setDescription('Summary language')
         .setRequired(false)
-        .addChoices(
-          { name: 'English',    value: 'English' },
-          { name: 'French',     value: 'French' },
-          { name: 'Spanish',    value: 'Spanish' },
-          { name: 'German',     value: 'German' },
-          { name: 'Japanese',   value: 'Japanese' },
-          { name: 'Korean',     value: 'Korean' },
-          { name: 'Chinese',    value: 'Chinese' },
-          { name: 'Portuguese', value: 'Portuguese' },
-          { name: 'Russian',    value: 'Russian' },
-          { name: 'Arabic',     value: 'Arabic' },
-        )
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
