@@ -2,6 +2,19 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.2.2] - 2026-04-05
+
+### Fun
+- `/gif <query> [mode]` — search GIFs via Giphy API (search, exact match, random)
+
+### Fixes
+- Fixed `/ask` text prefix passing question text as provider — now validates provider value
+- Fixed `askGemini` using Ollama model ID when user had local AI configured — falls back to default Gemini model
+- Switched GIF API from Tenor (discontinued Jan 2026) to Giphy
+- Updated `.env.example` with `GIPHY_API_KEY`, `OLLAMA_KEEP_ALIVE`, corrected default model
+
+---
+
 ## [2.2.1] - 2026-04-05
 
 ### AI — Local AI (Ollama)

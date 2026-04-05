@@ -71,7 +71,8 @@ const askCommand: CommandDef = {
     await interaction.deferReply();
 
     const question = interaction.options.getString('question', true);
-    const provider = (interaction.options.getString('provider') ?? 'auto') as Provider;
+    const rawProvider = interaction.options.getString('provider') ?? 'auto';
+    const provider = (['auto', 'claude', 'gemini', 'ollama'].includes(rawProvider) ? rawProvider : 'auto') as Provider;
     const lang     = interaction.options.getString('lang');
 
     try {

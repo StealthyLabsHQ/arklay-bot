@@ -55,8 +55,10 @@ export async function askGemini(
   userId?: string
 ): Promise<GeminiResult> {
   try {
+    const cfg = getAIConfig(userId);
+    const modelId = cfg.provider === 'gemini' ? cfg.model : 'gemini-3.1-flash-lite-preview';
     const model = getClient().getGenerativeModel({
-      model: getAIConfig(userId).model,
+      model: modelId,
       systemInstruction: SYSTEM_INSTRUCTION,
       generationConfig: { maxOutputTokens: 1024 },
     });

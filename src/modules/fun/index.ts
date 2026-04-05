@@ -9,11 +9,12 @@ import guesssong from './commands/guesssong';
 import rps from './commands/rps';
 import rate from './commands/rate';
 import how from './commands/how';
+import gif from './commands/gif';
 
 const funModule: BotModule = {
   name: 'fun',
   enabled: true,
-  commands: [eightball, choose, trivia, meme, coinflip, dice, guesssong, rps, rate, how],
+  commands: [eightball, choose, trivia, meme, coinflip, dice, guesssong, rps, rate, how, gif],
 };
 
 export default funModule;

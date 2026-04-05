@@ -12,9 +12,12 @@ const envSchema = z.object({
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_REGION: z.string().default('us-east5'),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
-  // Ollama (local LLM)
+  // Giphy GIF API
+  GIPHY_API_KEY: z.string().optional(),
+  // Ollama (local AI)
   OLLAMA_HOST: z.string().optional(),
   OLLAMA_MODEL: z.string().optional(),
+  OLLAMA_KEEP_ALIVE: z.string().default('5m'),
   // Lavalink
   LAVALINK_HOST: z.string().default('localhost:2333'),
   LAVALINK_PASSWORD: z.string().default('youshallnotpass'),
@@ -22,7 +25,7 @@ const envSchema = z.object({
   BOT_OWNER_ID: z.string().optional(),
   BOT_OWNER_MULTIPLIER: z.coerce.number().min(0).max(20).default(5),
   BOT_PREFIX: z.string().default('.'),
-  BOT_NAME: z.string().default('arklay'),
+  BOT_NAME: z.string().default('specter'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
