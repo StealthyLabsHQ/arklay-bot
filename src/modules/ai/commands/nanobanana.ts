@@ -20,7 +20,7 @@ import {
 
 const BASE_COOLDOWN_MS  = 20_000;
 const MAX_COOLDOWN_MS   = 120_000;
-const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';
+const LEARN_MORE = 'https://stealthylabs.eu/docs/specter-bot';
 
 // Adaptive cooldown - increases on API errors, decreases on success
 let currentCooldown = BASE_COOLDOWN_MS;
@@ -202,7 +202,9 @@ const nanobanana: CommandDef = {
           const enhanceResult = await ask(
             interaction.guildId ?? 'dm',
             userId,
-            `You are an image prompt engineer. Expand this basic prompt into a detailed, vivid image generation prompt. Keep the original intent. Add artistic details like composition, lighting, mood, colors, and style. Output ONLY the enhanced prompt, nothing else. Limit to 200 words.\n\nOriginal: ${prompt}`
+            `You are an image prompt engineer. Expand this basic prompt into a detailed, vivid image generation prompt. Keep the original intent. Add artistic details like composition, lighting, mood, colors, and style. Output ONLY the enhanced prompt, nothing else. Limit to 200 words.\n\nOriginal: ${prompt}`,
+            'auto',
+            false,
           );
           finalPrompt = enhanceResult.text;
         } catch {

@@ -32,6 +32,7 @@ export async function askOllama(
   history: ConversationMessage[],
   prompt: string,
   model?: string,
+  allowThinking = true,
 ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   const useModel = model ?? OLLAMA_MODEL;
 
@@ -58,7 +59,7 @@ export async function askOllama(
         model: useModel,
         messages,
         stream: false,
-        think: isThinkingEnabled(),
+        think: allowThinking && isThinkingEnabled(),
         keep_alive: process.env.OLLAMA_KEEP_ALIVE || '5m',
         options: {
           num_predict: 512,
@@ -94,7 +95,7 @@ export async function askOllama(
   }
 
   // If thinking mode is on and we have both thinking + content, show thinking as spoiler
-  if (thinking && text && isThinkingEnabled()) {
+  if (thinking && text && allowThinking && isThinkingEnabled()) {
     const thinkPreview = thinking.length > 800 ? thinking.slice(0, 797) + '...' : thinking;
     text = `||**Thinking:**\n${thinkPreview}||\n\n${text}`;
   }

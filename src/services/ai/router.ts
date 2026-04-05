@@ -31,7 +31,8 @@ export async function ask(
   guildId: string,
   userId: string,
   prompt: string,
-  provider: Provider = 'auto'
+  provider: Provider = 'auto',
+  allowThinking = true,
 ): Promise<AskResult> {
   const resolved = resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
@@ -57,7 +58,7 @@ export async function ask(
   }
 
   if (resolved === 'ollama') {
-    const result = await askOllama(history, prompt, actualModel);
+    const result = await askOllama(history, prompt, actualModel, allowThinking);
     incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', prompt);
     saveMessage(guildId, userId, 'assistant', result.text);
@@ -97,7 +98,7 @@ function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemin
     return 'claude';
   }
   if (provider === 'ollama') {
-    if (!ollamaAvailable()) throw new Error('Ollama provider is not available (not configured)');
+    if (!ollamaAvailable()) throw new Error('Ollama is not configured (set OLLAMA_HOST or OLLAMA_MODEL in .env)');
     return 'ollama';
   }
   if (!geminiAvailable()) throw new Error('Gemini provider is not available (missing API key)');

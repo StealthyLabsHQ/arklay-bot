@@ -60,6 +60,7 @@ const tldr: CommandDef = {
         interaction.user.id,
         prompt,
         'auto',
+        false,
       ));
 
       const summary = result.text.length > 4000 ? result.text.slice(0, 3997) + '...' : result.text;

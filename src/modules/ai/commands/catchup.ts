@@ -67,7 +67,7 @@ const catchup: CommandDef = {
       const text = lines.join('\n');
       const prompt = `Summarize this Discord conversation as concise bullet points. Focus on key topics, decisions, and action items.\n\n<messages>\n${text}\n</messages>`;
 
-      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt));
+      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt, 'auto', false));
 
       const summary = result.text.length > 4000 ? result.text.slice(0, 3997) + '...' : result.text;
 

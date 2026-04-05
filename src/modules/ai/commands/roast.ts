@@ -59,7 +59,7 @@ const roast: CommandDef = {
     }
 
     try {
-      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt));
+      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt, 'auto', false));
       const { name, source } = getModelDisplayInfo(
         result.provider,
         result.model,

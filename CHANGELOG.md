@@ -2,6 +2,47 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.2.1] - 2026-04-05
+
+### AI — Local AI (Ollama)
+- **Reply-to-bot conversation**: reply to any AI message to continue the conversation naturally
+- **Thinking mode**: per-command control — only `/ask` uses thinking when enabled, all other commands (roast, translate, catchup, etc.) always run in fast mode
+- Fixed Gemma 4 "thinking" model returning empty content — fallback extracts answer from thinking field
+- `think: false` sent by default to prevent empty responses on thinking-capable models
+
+---
+
+## [2.2.0] - 2026-04-05
+
+### AI — Local AI (Ollama)
+- **Ollama provider** for local AI models (Gemma 4, Llama, Mistral, etc.)
+- `/setmodel cloud <model>` — choose between Claude and Gemini
+- `/setmodel local` — switch to local AI (model from `OLLAMA_MODEL` env var)
+- `/localai prompt` — custom system prompt for local AI (bot owner only)
+- `/localai knowledge-add/list/remove/clear` — knowledge base (RAG) stored in SQLite, auto-injected when relevant
+- `/localai thinking` — toggle thinking mode (shows reasoning in Discord spoiler tags)
+- `/localai status` — view local AI configuration
+- **Thinking timer** on all AI commands — shows "thinking... (Xs)" while waiting for response
+- `OLLAMA_KEEP_ALIVE` env var — control how long model stays in RAM (default 5 min)
+- No hardcoded model names — reads from `OLLAMA_MODEL` in `.env`
+- No daily limits on local models
+- `start.bat` launches Ollama + Lavalink + bot together
+
+### Music — Lavalink Migration
+- **Complete rewrite** of music backend from ffmpeg/yt-dlp to **Lavalink + Shoukaku**
+- YouTube playback via `youtube-plugin` with `ytmsearch:` fallback
+- **Now Playing queue display**: shows up to 10 upcoming tracks in the embed
+- **Audio filter dropdown**: select menu with 11 filters (bassboost, nightcore, vaporwave, 8d, etc.)
+- **Graceful Lavalink detection**: music commands disabled with clear message when Lavalink is offline
+- Wait for Lavalink connection before auto-resume on restart
+
+### Misc
+- `.env.example` updated with Ollama and Lavalink variables
+- README: Quick Start for beginners, tree-style architecture diagram, Windows Java instructions
+- Fixed `specter` → `arklay` references in README and `.env.example`
+
+---
+
 ## [2.0.1] - 2026-04-05
 
 ### Music
