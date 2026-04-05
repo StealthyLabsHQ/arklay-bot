@@ -4,6 +4,7 @@ import type { CommandDef } from '../../../types';
 import { config } from '../../../services/config';
 import {
   getSystemPrompt, setSystemPrompt, resetSystemPrompt,
+  getCloudPrompt, setCloudPrompt, resetCloudPrompt,
   addKnowledge, listKnowledge, removeKnowledge, clearKnowledge,
   isThinkingEnabled, setThinking,
 } from '../../../services/localaiConfig';
@@ -74,8 +75,24 @@ const localai: CommandDef = {
     )
     .addSubcommand((sub) =>
       sub
+        .setName('cloud-prompt')
+        .setDescription('Set a custom system prompt for cloud AI (Claude + Gemini)')
+        .addStringOption((opt) =>
+          opt.setName('text').setDescription('New cloud prompt (or attach a .txt file)').setRequired(false)
+        )
+        .addAttachmentOption((opt) =>
+          opt.setName('file').setDescription('Upload a .txt file with the prompt').setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('reset-cloud-prompt')
+        .setDescription('Reset cloud AI prompt to default')
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName('status')
-        .setDescription('Show local AI configuration status')
+        .setDescription('Show AI configuration status')
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -222,8 +239,52 @@ const localai: CommandDef = {
         return;
       }
 
+      case 'cloud-prompt': {
+        let cpText = interaction.options.getString('text') ?? '';
+        const cpFile = interaction.options.getAttachment('file');
+        if (cpFile) {
+          if (!cpFile.name?.match(/\.(txt|md|text)$/i)) {
+            await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
+            return;
+          }
+          const res = await fetch(cpFile.url);
+          cpText = await res.text();
+        }
+        if (!cpText) {
+          const current = getCloudPrompt();
+          const embed = new EmbedBuilder()
+            .setColor(0x4285f4)
+            .setTitle('Cloud AI — System Prompt')
+            .setDescription(current
+              ? `\`\`\`\n${current.slice(0, 4000)}\n\`\`\``
+              : '*Using default system prompt.*')
+            .setFooter({ text: 'Applies to Claude + Gemini' });
+          await interaction.reply({ embeds: [embed], ephemeral: true });
+          return;
+        }
+        setCloudPrompt(cpText);
+        const embed = new EmbedBuilder()
+          .setColor(0x4285f4)
+          .setTitle('Cloud AI — Prompt Updated')
+          .setDescription(`\`\`\`\n${cpText.slice(0, 4000)}\n\`\`\``)
+          .addFields({ name: 'Size', value: `${cpText.length} chars`, inline: true })
+          .setFooter({ text: 'Active for all Claude + Gemini responses' });
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      case 'reset-cloud-prompt': {
+        resetCloudPrompt();
+        await interaction.reply({
+          embeds: [new EmbedBuilder().setColor(0x4285f4).setTitle('Cloud AI — Prompt Reset').setDescription('Cloud system prompt reset to default.')],
+          ephemeral: true,
+        });
+        return;
+      }
+
       case 'status': {
         const prompt = getSystemPrompt();
+        const cloudPrompt = getCloudPrompt();
         const entries = listKnowledge();
         const thinking = isThinkingEnabled();
         const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434';
@@ -231,15 +292,16 @@ const localai: CommandDef = {
 
         const embed = new EmbedBuilder()
           .setColor(0x00b894)
-          .setTitle('Local AI — Status')
+          .setTitle('AI — Status')
           .addFields(
             { name: 'Ollama Host', value: `\`${ollamaHost}\``, inline: true },
             { name: 'Default Model', value: `\`${ollamaModel}\``, inline: true },
-            { name: 'System Prompt', value: prompt ? `Custom (${prompt.length} chars)` : 'Default', inline: true },
+            { name: 'Local Prompt', value: prompt ? `Custom (${prompt.length} chars)` : 'Default', inline: true },
+            { name: 'Cloud Prompt', value: cloudPrompt ? `Custom (${cloudPrompt.length} chars)` : 'Default', inline: true },
             { name: 'Knowledge Base', value: `${entries.length} entries`, inline: true },
             { name: 'Thinking Mode', value: thinking ? 'Enabled' : 'Disabled', inline: true },
           )
-          .setFooter({ text: 'Use /localai prompt, knowledge-add, thinking to configure' });
+          .setFooter({ text: '/localai prompt, cloud-prompt, knowledge-add, thinking' });
         await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
       }

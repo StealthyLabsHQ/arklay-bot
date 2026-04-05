@@ -26,6 +26,21 @@ export function setThinking(enabled: boolean): void {
   stmtSetConfig.run('thinking', enabled ? 'true' : 'false');
 }
 
+// ── Cloud System Prompt ──────────────────────────────────────────────────────
+
+export function getCloudPrompt(): string | null {
+  const row = stmtGetConfig.get('cloud_prompt') as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setCloudPrompt(prompt: string): void {
+  stmtSetConfig.run('cloud_prompt', prompt);
+}
+
+export function resetCloudPrompt(): void {
+  stmtDelConfig.run('cloud_prompt');
+}
+
 export function resetSystemPrompt(): void {
   stmtDelConfig.run('system_prompt');
 }
