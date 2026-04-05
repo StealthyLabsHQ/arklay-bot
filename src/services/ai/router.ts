@@ -1,16 +1,17 @@
 import { askClaude, isAvailable as claudeAvailable } from './anthropic';
 import { askGemini, isAvailable as geminiAvailable } from './google';
+import { askOllama, isAvailable as ollamaAvailable, getModel as getOllamaModel } from './ollama';
 import { getHistory, saveMessage } from '../database';
 import { getAIConfig } from '../aiConfig';
 import { isLimitReached, incrementUsage } from '../usageLimit';
 export { NetworkError, SafetyError, RateLimitError } from './anthropic';
 export type { TokenUsage } from './anthropic';
 
-export type Provider = 'claude' | 'gemini' | 'auto';
+export type Provider = 'claude' | 'gemini' | 'ollama' | 'auto';
 
 export interface AskResult {
   text: string;
-  provider: 'claude' | 'gemini';
+  provider: 'claude' | 'gemini' | 'ollama';
   model: string;
   tokenUsage?: {
     inputTokens: number;
@@ -37,6 +38,7 @@ export async function ask(
   // Use the configured model only if it matches the resolved provider, otherwise use the default for that provider
   const actualModel = cfg.provider === resolved ? cfg.model
     : resolved === 'claude' ? 'claude-sonnet-4-6'
+    : resolved === 'ollama' ? getOllamaModel()
     : 'gemini-3.1-flash-lite-preview';
 
   if (isLimitReached(userId, actualModel)) {
@@ -54,6 +56,19 @@ export async function ask(
     return { text: result.text, provider: 'claude', model: actualModel, tokenUsage: result.usage };
   }
 
+  if (resolved === 'ollama') {
+    const result = await askOllama(history, prompt, actualModel);
+    incrementUsage(userId, actualModel);
+    saveMessage(guildId, userId, 'user', prompt);
+    saveMessage(guildId, userId, 'assistant', result.text);
+    return {
+      text: result.text,
+      provider: 'ollama',
+      model: actualModel,
+      tokenUsage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+    };
+  }
+
   const result = await askGemini(history, prompt, userId);
   incrementUsage(userId, actualModel);
   saveMessage(guildId, userId, 'user', prompt);
@@ -66,18 +81,24 @@ export async function ask(
   };
 }
 
-function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemini' {
+function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemini' | 'ollama' {
   if (provider === 'auto') {
     const configured = getAIConfig(userId).provider;
+    if (configured === 'ollama' && ollamaAvailable()) return 'ollama';
     if (configured === 'gemini' && geminiAvailable()) return 'gemini';
     if (configured === 'claude' && claudeAvailable()) return 'claude';
     if (geminiAvailable()) return 'gemini';
     if (claudeAvailable()) return 'claude';
+    if (ollamaAvailable()) return 'ollama';
     throw new Error('No AI provider available');
   }
   if (provider === 'claude') {
     if (!claudeAvailable()) throw new Error('Claude provider is not available (missing API key)');
     return 'claude';
+  }
+  if (provider === 'ollama') {
+    if (!ollamaAvailable()) throw new Error('Ollama provider is not available (not configured)');
+    return 'ollama';
   }
   if (!geminiAvailable()) throw new Error('Gemini provider is not available (missing API key)');
   return 'gemini';

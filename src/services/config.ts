@@ -12,6 +12,9 @@ const envSchema = z.object({
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   GOOGLE_CLOUD_REGION: z.string().default('us-east5'),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
+  // Ollama (local LLM)
+  OLLAMA_HOST: z.string().optional(),
+  OLLAMA_MODEL: z.string().optional(),
   // Lavalink
   LAVALINK_HOST: z.string().default('localhost:2333'),
   LAVALINK_PASSWORD: z.string().default('youshallnotpass'),

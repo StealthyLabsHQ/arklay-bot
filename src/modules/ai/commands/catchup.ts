@@ -7,6 +7,7 @@ import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
 import { remaining } from '../../../services/usageLimit';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { logger } from '../../../services/logger';
+import { withThinkingTimer } from '../../../services/thinkingTimer';
 
 const COOLDOWN_MS = 30_000;
 
@@ -66,7 +67,7 @@ const catchup: CommandDef = {
       const text = lines.join('\n');
       const prompt = `Summarize this Discord conversation as concise bullet points. Focus on key topics, decisions, and action items.\n\n<messages>\n${text}\n</messages>`;
 
-      const result = await ask(interaction.guildId ?? 'dm', interaction.user.id, prompt);
+      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt));
 
       const summary = result.text.length > 4000 ? result.text.slice(0, 3997) + '...' : result.text;
 

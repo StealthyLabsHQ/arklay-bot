@@ -7,6 +7,7 @@ import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
 import { remaining } from '../../../services/usageLimit';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { logger } from '../../../services/logger';
+import { withThinkingTimer } from '../../../services/thinkingTimer';
 
 const COOLDOWN_MS = 15_000;
 
@@ -58,7 +59,7 @@ const roast: CommandDef = {
     }
 
     try {
-      const result = await ask(interaction.guildId ?? 'dm', interaction.user.id, prompt);
+      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt));
       const { name, source } = getModelDisplayInfo(
         result.provider,
         result.model,

@@ -6,6 +6,7 @@ import { isVertexMode } from '../providers/anthropic';
 import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
 import { remaining } from '../../../services/usageLimit';
 import { logger } from '../../../services/logger';
+import { withThinkingTimer } from '../../../services/thinkingTimer';
 
 const tldr: CommandDef = {
   data: new SlashCommandBuilder()
@@ -54,12 +55,12 @@ const tldr: CommandDef = {
       }
 
       const prompt = `Summarize this webpage content in 3-5 bullet points. Be concise.\n\n${text}`;
-      const result = await ask(
+      const result = await withThinkingTimer(interaction, ask(
         interaction.guildId ?? 'dm',
         interaction.user.id,
         prompt,
         'auto',
-      );
+      ));
 
       const summary = result.text.length > 4000 ? result.text.slice(0, 3997) + '...' : result.text;
 

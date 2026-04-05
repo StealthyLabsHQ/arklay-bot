@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask, NetworkError, SafetyError, RateLimitError, DailyLimitError, type Provider } from '../router';
+import { withThinkingTimer } from '../../../services/thinkingTimer';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { remaining } from '../../../services/usageLimit';
 import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
@@ -10,7 +11,7 @@ import { logger } from '../../../services/logger';
 
 const BASE_COOLDOWN_MS = 8_000;
 const MAX_COOLDOWN_MS  = 60_000;
-const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';
+const LEARN_MORE = 'https://stealthylabs.eu/docs/specter-bot';
 
 let askCooldown    = BASE_COOLDOWN_MS;
 let lastAskError   = 0;
@@ -35,7 +36,8 @@ const askCommand: CommandDef = {
         .addChoices(
           { name: 'Auto (default)', value: 'auto' },
           { name: 'Claude (Anthropic)', value: 'claude' },
-          { name: 'Gemini (Google)', value: 'gemini' }
+          { name: 'Gemini (Google)', value: 'gemini' },
+          { name: 'Ollama (Local)', value: 'ollama' }
         )
     )
     .addStringOption((opt) =>
@@ -74,11 +76,9 @@ const askCommand: CommandDef = {
 
     try {
       const finalPrompt = lang ? `[Respond in ${lang}] ${question}` : question;
-      const result = await ask(
-        interaction.guildId ?? 'dm',
-        interaction.user.id,
-        finalPrompt,
-        provider
+      const result = await withThinkingTimer(
+        interaction,
+        ask(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, provider),
       );
 
       const { name, source } = getModelDisplayInfo(

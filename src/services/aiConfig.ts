@@ -1,7 +1,7 @@
 // Per-user AI model configuration - SQLite persistent
 import db from './db';
 
-export type AIProvider = 'claude' | 'gemini';
+export type AIProvider = 'claude' | 'gemini' | 'ollama';
 
 export interface AIModelConfig {
   provider: AIProvider;
@@ -20,6 +20,10 @@ export const MODELS: Record<AIProvider, { id: string; label: string; displayName
     { id: 'gemini-3.1-pro-preview',        label: 'Gemini 3.1 Pro Preview (most powerful)', displayName: 'Gemini 3.1 Pro Preview' },
     { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite (cheapest)',     displayName: 'Gemini 3.1 Flash Lite' },
   ],
+  ollama: (() => {
+    const m = process.env.OLLAMA_MODEL || 'gemma4:26b';
+    return [{ id: m, label: `${m} (local)`, displayName: m }];
+  })(),
 };
 
 const DEFAULT_CONFIG: Readonly<AIModelConfig> = {
@@ -64,7 +68,9 @@ export function getModelDisplayInfo(
   const name = found?.displayName ?? modelId;
 
   let source: string;
-  if (provider === 'gemini') {
+  if (provider === 'ollama') {
+    source = 'Google DeepMind (Local)';
+  } else if (provider === 'gemini') {
     source = 'Google Gemini API';
   } else if (vertexMode) {
     source = 'Google Cloud Vertex AI';

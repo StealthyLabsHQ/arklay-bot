@@ -32,7 +32,8 @@ const summarize: CommandDef = {
         .addChoices(
           { name: 'Auto (default)', value: 'auto' },
           { name: 'Claude (Anthropic)', value: 'claude' },
-          { name: 'Gemini (Google)', value: 'gemini' }
+          { name: 'Gemini (Google)', value: 'gemini' },
+          { name: 'Ollama (Local)', value: 'ollama' }
         )
     )
     .addStringOption((opt) =>

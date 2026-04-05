@@ -1,0 +1,210 @@
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
+import type { CommandDef } from '../../../types';
+import { config } from '../../../services/config';
+import {
+  getSystemPrompt, setSystemPrompt, resetSystemPrompt,
+  addKnowledge, listKnowledge, removeKnowledge, clearKnowledge,
+  isThinkingEnabled, setThinking,
+} from '../../../services/localaiConfig';
+
+function isBotOwner(userId: string): boolean {
+  return !!config.BOT_OWNER_ID && userId === config.BOT_OWNER_ID;
+}
+
+const localai: CommandDef = {
+  data: new SlashCommandBuilder()
+    .setName('localai')
+    .setDescription('Manage local AI settings (bot owner only)')
+    .addSubcommand((sub) =>
+      sub
+        .setName('prompt')
+        .setDescription('Set a custom system prompt for local AI')
+        .addStringOption((opt) =>
+          opt.setName('text').setDescription('New system prompt (omit to view current)').setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('reset-prompt')
+        .setDescription('Reset system prompt to default')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('knowledge-add')
+        .setDescription('Add an entry to the knowledge base (RAG)')
+        .addStringOption((opt) =>
+          opt.setName('topic').setDescription('Topic/keyword for this entry').setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt.setName('content').setDescription('Knowledge content').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('knowledge-list')
+        .setDescription('List all knowledge base entries')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('knowledge-remove')
+        .setDescription('Remove a knowledge entry by ID')
+        .addIntegerOption((opt) =>
+          opt.setName('id').setDescription('Entry ID to remove').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('knowledge-clear')
+        .setDescription('Clear all knowledge base entries')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('thinking')
+        .setDescription('Toggle thinking mode (model shows reasoning before answering)')
+        .addBooleanOption((opt) =>
+          opt.setName('enabled').setDescription('Enable or disable thinking mode').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('status')
+        .setDescription('Show local AI configuration status')
+    ) as SlashCommandBuilder,
+
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (!isBotOwner(interaction.user.id)) {
+      await interaction.reply({ content: 'This command is restricted to the bot owner.', ephemeral: true });
+      return;
+    }
+
+    const sub = interaction.options.getSubcommand();
+
+    switch (sub) {
+      case 'prompt': {
+        const text = interaction.options.getString('text');
+        if (!text) {
+          const current = getSystemPrompt();
+          const embed = new EmbedBuilder()
+            .setColor(0x00b894)
+            .setTitle('Local AI — System Prompt')
+            .setDescription(current
+              ? `\`\`\`\n${current.slice(0, 4000)}\n\`\`\``
+              : '*Using default system prompt.*')
+            .setFooter({ text: '/localai prompt <text> to change' });
+          await interaction.reply({ embeds: [embed], ephemeral: true });
+          return;
+        }
+        setSystemPrompt(text);
+        const embed = new EmbedBuilder()
+          .setColor(0x00b894)
+          .setTitle('Local AI — Prompt Updated')
+          .setDescription(`\`\`\`\n${text.slice(0, 4000)}\n\`\`\``)
+          .setFooter({ text: 'Active for all local AI responses' });
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      case 'reset-prompt': {
+        resetSystemPrompt();
+        await interaction.reply({
+          embeds: [new EmbedBuilder().setColor(0x00b894).setTitle('Local AI — Prompt Reset').setDescription('System prompt reset to default.')],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      case 'knowledge-add': {
+        const topic = interaction.options.getString('topic', true);
+        const content = interaction.options.getString('content', true);
+        const id = addKnowledge(topic, content);
+        const embed = new EmbedBuilder()
+          .setColor(0x00b894)
+          .setTitle('Knowledge Base — Entry Added')
+          .addFields(
+            { name: 'ID', value: `${id}`, inline: true },
+            { name: 'Topic', value: topic, inline: true },
+          )
+          .setDescription(content.slice(0, 4000))
+          .setFooter({ text: 'This knowledge will be injected into local AI context when relevant' });
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      case 'knowledge-list': {
+        const entries = listKnowledge();
+        if (entries.length === 0) {
+          await interaction.reply({ content: 'Knowledge base is empty. Use `/localai knowledge-add` to add entries.', ephemeral: true });
+          return;
+        }
+        const lines = entries.map((e) => `**#${e.id}** — \`${e.topic}\`: ${e.content.slice(0, 80)}${e.content.length > 80 ? '...' : ''}`);
+        const embed = new EmbedBuilder()
+          .setColor(0x00b894)
+          .setTitle(`Knowledge Base — ${entries.length} entries`)
+          .setDescription(lines.join('\n').slice(0, 4000))
+          .setFooter({ text: '/localai knowledge-remove <id> to delete' });
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      case 'knowledge-remove': {
+        const id = interaction.options.getInteger('id', true);
+        const removed = removeKnowledge(id);
+        await interaction.reply({
+          content: removed ? `Knowledge entry #${id} removed.` : `Entry #${id} not found.`,
+          ephemeral: true,
+        });
+        return;
+      }
+
+      case 'knowledge-clear': {
+        const count = clearKnowledge();
+        await interaction.reply({
+          content: `Cleared ${count} knowledge entries.`,
+          ephemeral: true,
+        });
+        return;
+      }
+
+      case 'thinking': {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        setThinking(enabled);
+        await interaction.reply({
+          embeds: [new EmbedBuilder()
+            .setColor(0x00b894)
+            .setTitle('Local AI — Thinking Mode')
+            .setDescription(enabled
+              ? '**Enabled** — the model will reason before answering (slower but smarter).'
+              : '**Disabled** — the model will answer directly (faster).')
+          ],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      case 'status': {
+        const prompt = getSystemPrompt();
+        const entries = listKnowledge();
+        const thinking = isThinkingEnabled();
+        const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434';
+        const ollamaModel = process.env.OLLAMA_MODEL || 'gemma4:e4b';
+
+        const embed = new EmbedBuilder()
+          .setColor(0x00b894)
+          .setTitle('Local AI — Status')
+          .addFields(
+            { name: 'Ollama Host', value: `\`${ollamaHost}\``, inline: true },
+            { name: 'Default Model', value: `\`${ollamaModel}\``, inline: true },
+            { name: 'System Prompt', value: prompt ? `Custom (${prompt.length} chars)` : 'Default', inline: true },
+            { name: 'Knowledge Base', value: `${entries.length} entries`, inline: true },
+            { name: 'Thinking Mode', value: thinking ? 'Enabled' : 'Disabled', inline: true },
+          )
+          .setFooter({ text: 'Use /localai prompt, knowledge-add, thinking to configure' });
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+    }
+  },
+};
+
+export default localai;

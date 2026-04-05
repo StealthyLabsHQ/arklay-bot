@@ -78,6 +78,18 @@ db.exec(`
     PRIMARY KEY (guild_id, role_id)
   );
 
+  CREATE TABLE IF NOT EXISTS localai_config (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS localai_knowledge (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic      TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
   CREATE TABLE IF NOT EXISTS music_resume (
     guild_id          TEXT PRIMARY KEY,
     voice_channel_id  TEXT NOT NULL,

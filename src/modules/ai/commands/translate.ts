@@ -7,6 +7,7 @@ import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
 import { remaining } from '../../../services/usageLimit';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { logger } from '../../../services/logger';
+import { withThinkingTimer } from '../../../services/thinkingTimer';
 
 const COOLDOWN_MS = 8_000;
 
@@ -35,7 +36,7 @@ const translate: CommandDef = {
     const prompt   = `Translate the text inside <text> tags to ${language}. Output ONLY the translation, nothing else.\n\n<text>${text}</text>`;
 
     try {
-      const result = await ask(interaction.guildId ?? 'dm', interaction.user.id, prompt);
+      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt));
       const translation = result.text.length > 1800 ? result.text.slice(0, 1797) + '...' : result.text;
       const { name, source } = getModelDisplayInfo(
         result.provider,
