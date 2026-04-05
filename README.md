@@ -12,7 +12,7 @@ Built by [StealthyLabs](https://stealthylabs.eu).
 Play music from SoundCloud, Spotify, and YouTube with full queue management, audio filters, lyrics, persistent player UI with buttons and filter dropdown, auto-resume on restart, AI-generated playlists, autoplay, and track history. Powered by Lavalink + Shoukaku with SoundCloud as primary streaming source.
 
 **AI** (10 commands + local AI management)
-Chat with Claude (Anthropic), Gemini (Google), or a local model via Ollama (Gemma 4, Llama, Mistral, etc.). Generate images with Nano Banana 2, translate text, analyze images, catch up on conversations, summarize webpages. Bot owner can customize the local AI system prompt, knowledge base (RAG), and thinking mode.
+Chat with Claude (Anthropic), Gemini (Google), or a local model via Ollama (Gemma 4, Llama, Mistral, etc.). Generate images with Nano Banana 2, translate text, analyze images, catch up on conversations, summarize webpages. Bot owner can customize system prompts for both cloud and local AI, manage a knowledge base (RAG) with auto-summarization, and toggle thinking mode. Supports any language for responses.
 
 **Moderation** (12 commands)
 Ban, kick, timeout, warn, mute, lockdown, slowmode, clear messages, nuke channels, manage bot admin roles, and toggle roles.

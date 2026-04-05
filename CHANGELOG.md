@@ -2,6 +2,40 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.4.0] - 2026-04-05
+
+### AI
+- `/localai cloud-prompt` — custom system prompt for Claude + Gemini (bot owner only)
+- `/localai reset-cloud-prompt` — reset cloud prompt to default
+- `/localai status` now shows both local and cloud prompt status
+- Free-text language option on `/ask`, `/summarize`, `/roast`, `/vision` — type any language
+- Auto-summarize long knowledge entries (>2000 chars) before storing for efficient RAG
+- File upload support for `/localai prompt` and `/localai knowledge-add` (up to 25MB, .txt/.md)
+- Improved AI playlist prompt to reduce hallucinations — prioritize real songs by mentioned artist
+- Fix provider validation on text prefix `/ask` — no longer passes question as provider
+
+### Music
+- Volume buttons (🔉 Vol- / 🔊 Vol+) in Now Playing player UI (±10% per click)
+- Fix "guild already has existing connection" crash — reuse existing Shoukaku player
+- Fix track skipping loop — clear YouTube-encoded data on failure, re-resolve via SoundCloud
+- SoundCloud-first streaming with YouTube fallback
+- LavaSrc plugin for extended source support
+- Auto-detect actual streaming source (SoundCloud/YouTube/Spotify) from Lavalink track info
+- Correct source labels and colors in Now Playing embed
+
+### Fun
+- `/gif <query> [mode]` — search GIFs via Giphy (search, exact, random)
+
+### Misc
+- Fix Learn More links pointing to specter-bot → arklay-bot
+- Fix BOT_NAME default to `arklay`
+- Fix askGemini using Ollama model ID when user configured local AI
+- Prevent bot crashes from unhandled promise rejections
+- Fix OLLAMA_KEEP_ALIVE=-1 crash
+- Updated `.env.example` with GIPHY_API_KEY, OLLAMA_KEEP_ALIVE
+
+---
+
 ## [2.3.0] - 2026-04-05
 
 ### Music — SoundCloud-first streaming
