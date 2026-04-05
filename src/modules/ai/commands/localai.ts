@@ -21,7 +21,10 @@ const localai: CommandDef = {
         .setName('prompt')
         .setDescription('Set a custom system prompt for local AI')
         .addStringOption((opt) =>
-          opt.setName('text').setDescription('New system prompt (omit to view current)').setRequired(false)
+          opt.setName('text').setDescription('New system prompt (or attach a .txt file)').setRequired(false)
+        )
+        .addAttachmentOption((opt) =>
+          opt.setName('file').setDescription('Upload a .txt file with the system prompt').setRequired(false)
         )
     )
     .addSubcommand((sub) =>
@@ -37,7 +40,10 @@ const localai: CommandDef = {
           opt.setName('topic').setDescription('Topic/keyword for this entry').setRequired(true)
         )
         .addStringOption((opt) =>
-          opt.setName('content').setDescription('Knowledge content').setRequired(true)
+          opt.setName('content').setDescription('Knowledge content (or attach a .txt file for long content)').setRequired(false)
+        )
+        .addAttachmentOption((opt) =>
+          opt.setName('file').setDescription('Upload a .txt or .md file with knowledge content').setRequired(false)
         )
     )
     .addSubcommand((sub) =>
@@ -82,7 +88,18 @@ const localai: CommandDef = {
 
     switch (sub) {
       case 'prompt': {
-        const text = interaction.options.getString('text');
+        let text = interaction.options.getString('text') ?? '';
+        const promptFile = interaction.options.getAttachment('file');
+
+        if (promptFile) {
+          if (!promptFile.name?.match(/\.(txt|md|text)$/i)) {
+            await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
+            return;
+          }
+          const res = await fetch(promptFile.url);
+          text = await res.text();
+        }
+
         if (!text) {
           const current = getSystemPrompt();
           const embed = new EmbedBuilder()
@@ -91,7 +108,7 @@ const localai: CommandDef = {
             .setDescription(current
               ? `\`\`\`\n${current.slice(0, 4000)}\n\`\`\``
               : '*Using default system prompt.*')
-            .setFooter({ text: '/localai prompt <text> to change' });
+            .setFooter({ text: '/localai prompt <text> or attach a .txt file' });
           await interaction.reply({ embeds: [embed], ephemeral: true });
           return;
         }
@@ -100,6 +117,7 @@ const localai: CommandDef = {
           .setColor(0x00b894)
           .setTitle('Local AI — Prompt Updated')
           .setDescription(`\`\`\`\n${text.slice(0, 4000)}\n\`\`\``)
+          .addFields({ name: 'Size', value: `${text.length} chars`, inline: true })
           .setFooter({ text: 'Active for all local AI responses' });
         await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
@@ -116,7 +134,28 @@ const localai: CommandDef = {
 
       case 'knowledge-add': {
         const topic = interaction.options.getString('topic', true);
-        const content = interaction.options.getString('content', true);
+        let content = interaction.options.getString('content') ?? '';
+        const file = interaction.options.getAttachment('file');
+
+        // Read content from attached file if provided
+        if (file) {
+          if (!file.name?.match(/\.(txt|md|text)$/i)) {
+            await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
+            return;
+          }
+          if (file.size > 50_000) {
+            await interaction.reply({ content: 'File too large (max 50KB).', ephemeral: true });
+            return;
+          }
+          const res = await fetch(file.url);
+          content = await res.text();
+        }
+
+        if (!content.trim()) {
+          await interaction.reply({ content: 'Provide content via text or attach a .txt file.', ephemeral: true });
+          return;
+        }
+
         const id = addKnowledge(topic, content);
         const embed = new EmbedBuilder()
           .setColor(0x00b894)
@@ -124,6 +163,7 @@ const localai: CommandDef = {
           .addFields(
             { name: 'ID', value: `${id}`, inline: true },
             { name: 'Topic', value: topic, inline: true },
+            { name: 'Size', value: `${content.length} chars`, inline: true },
           )
           .setDescription(content.slice(0, 4000))
           .setFooter({ text: 'This knowledge will be injected into local AI context when relevant' });
