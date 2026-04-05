@@ -2,6 +2,9 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction, GuildMember, TextChannel } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask } from '../../../services/ai/router';
+import { isVertexMode } from '../../../services/ai/anthropic';
+import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
+import { remaining } from '../../../services/usageLimit';
 import { resolve } from '../utils/resolver';
 import { getQueues } from '../../../services/musicQueue';
 import { GuildQueue } from '../structures/GuildQueue';
@@ -16,6 +19,14 @@ const aiplaylist: CommandDef = {
         .setName('prompt')
         .setDescription('Describe the vibe, e.g. chill lo-fi for studying')
         .setRequired(true)
+    )
+    .addIntegerOption((opt) =>
+      opt
+        .setName('count')
+        .setDescription('Number of tracks to generate (default 5, max 25)')
+        .setMinValue(1)
+        .setMaxValue(25)
+        .setRequired(false)
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -30,15 +41,16 @@ const aiplaylist: CommandDef = {
     }
 
     const userPrompt = interaction.options.getString('prompt', true);
+    const count = interaction.options.getInteger('count') ?? 5;
     const guildId = interaction.guildId!;
 
-    // Ask AI for 5 song recommendations
+    // Ask AI for song recommendations
     let aiResult;
     try {
       aiResult = await ask(
         guildId,
         interaction.user.id,
-        `Generate exactly 5 song recommendations for: ${userPrompt}. Format each line as: Artist - Song Title. Output ONLY the 5 lines, no numbering, no explanation.`
+        `Generate exactly ${count} song recommendations for: ${userPrompt}. Format each line as: Artist - Song Title. Output ONLY the ${count} lines, no numbering, no explanation.`
       );
     } catch (err) {
       logger.error({ err }, '/ai-playlist: AI request failed');
@@ -46,12 +58,12 @@ const aiplaylist: CommandDef = {
       return;
     }
 
-    // Parse the 5 lines
+    // Parse the lines
     const lines = aiResult.text
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l.length > 0)
-      .slice(0, 5);
+      .slice(0, count);
 
     if (lines.length === 0) {
       await interaction.editReply('AI returned no song suggestions. Try a different prompt.');
@@ -93,14 +105,22 @@ const aiplaylist: CommandDef = {
       queue.playNext().catch((err) => logger.error({ err }, '/ai-playlist: playNext failed'));
     }
 
+    const { name: modelName, source } = getModelDisplayInfo(
+      aiResult.provider,
+      getAIConfig(interaction.user.id).model,
+      aiResult.provider === 'claude' && isVertexMode()
+    );
+    const left = remaining(interaction.user.id, getAIConfig(interaction.user.id).model);
+    const quota = left !== null ? ` \u2022 ${left} req left` : '';
+
     const embed = new EmbedBuilder()
       .setColor(0x9b59b6)
       .setTitle('AI Playlist')
       .setDescription(
-        `**Prompt:** ${userPrompt}\n\n` +
+        `**Prompt:** ${userPrompt}, ${count} tracks max\n\n` +
         added.map((t, i) => `**${i + 1}.** ${t}`).join('\n')
       )
-      .setFooter({ text: `${added.length} track(s) added | Powered by ${aiResult.provider}` });
+      .setFooter({ text: `${added.length} track(s) added \u2022 ${modelName} (${source})${quota}` });
 
     await interaction.editReply({ embeds: [embed] });
   },

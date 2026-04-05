@@ -2,6 +2,9 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask } from '../router';
+import { isVertexMode } from '../providers/anthropic';
+import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
+import { remaining } from '../../../services/usageLimit';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { logger } from '../../../services/logger';
 
@@ -33,8 +36,16 @@ const translate: CommandDef = {
 
     try {
       const result = await ask(interaction.guildId ?? 'dm', interaction.user.id, prompt);
-      const translation = result.text.length > 1900 ? result.text.slice(0, 1897) + '...' : result.text;
-      await interaction.editReply({ content: `**${language}:**\n${translation}` });
+      const translation = result.text.length > 1800 ? result.text.slice(0, 1797) + '...' : result.text;
+      const { name, source } = getModelDisplayInfo(
+        result.provider,
+        getAIConfig(interaction.user.id).model,
+        result.provider === 'claude' && isVertexMode()
+      );
+      const left = remaining(interaction.user.id, getAIConfig(interaction.user.id).model);
+      const quota = left !== null ? ` \u2022 ${left} req left today` : '';
+      const footer = `-# Translated by **${name}** (${source})${quota}`;
+      await interaction.editReply({ content: `**${language}:**\n${translation}\n${footer}` });
     } catch (err) {
       logger.error({ err }, '/translate failed');
       await interaction.editReply('Translation failed. Try again later.');

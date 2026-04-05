@@ -24,7 +24,7 @@ export const MODELS: Record<AIProvider, { id: string; label: string; displayName
 
 const DEFAULT_CONFIG: Readonly<AIModelConfig> = {
   provider: 'gemini',
-  model: 'gemini-3-flash-preview',
+  model: 'gemini-3.1-flash-lite-preview',
 };
 
 const stmtGet = db.prepare('SELECT provider, model FROM ai_config WHERE user_id = ?');

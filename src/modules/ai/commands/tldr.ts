@@ -2,6 +2,9 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask, NetworkError, SafetyError, RateLimitError, DailyLimitError } from '../router';
+import { isVertexMode } from '../providers/anthropic';
+import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
+import { remaining } from '../../../services/usageLimit';
 import { logger } from '../../../services/logger';
 
 const tldr: CommandDef = {
@@ -24,7 +27,7 @@ const tldr: CommandDef = {
 
     try {
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'ArklayBot/1.0 (Discord TLDR)' },
+        headers: { 'User-Agent': 'DiscordBot/1.0 (TLDR)' },
         signal: AbortSignal.timeout(10_000),
       });
 
@@ -65,7 +68,16 @@ const tldr: CommandDef = {
         .setTitle('TL;DR')
         .setDescription(summary)
         .addFields({ name: 'Source', value: url })
-        .setFooter({ text: `Powered by ${result.provider}` });
+        .setFooter({ text: (() => {
+          const { name, source } = getModelDisplayInfo(
+            result.provider,
+            getAIConfig(interaction.user.id).model,
+            result.provider === 'claude' && isVertexMode()
+          );
+          const left = remaining(interaction.user.id, getAIConfig(interaction.user.id).model);
+          const quota = left !== null ? ` \u2022 ${left} req left` : '';
+          return `${name} (${source})${quota}`;
+        })() });
 
       await interaction.editReply({ embeds: [embed] });
     } catch (err) {

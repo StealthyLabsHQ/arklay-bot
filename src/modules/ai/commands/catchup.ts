@@ -2,6 +2,9 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask } from '../router';
+import { isVertexMode } from '../providers/anthropic';
+import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
+import { remaining } from '../../../services/usageLimit';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { logger } from '../../../services/logger';
 
@@ -71,7 +74,16 @@ const catchup: CommandDef = {
         .setColor(0x5865f2)
         .setTitle('Conversation Catchup')
         .setDescription(summary)
-        .setFooter({ text: `${lines.length} messages analyzed · ${result.provider}` });
+        .setFooter({ text: (() => {
+          const { name, source } = getModelDisplayInfo(
+            result.provider,
+            getAIConfig(interaction.user.id).model,
+            result.provider === 'claude' && isVertexMode()
+          );
+          const left = remaining(interaction.user.id, getAIConfig(interaction.user.id).model);
+          const quota = left !== null ? ` \u2022 ${left} req left` : '';
+          return `${lines.length} messages analyzed \u2022 ${name} (${source})${quota}`;
+        })() });
 
       await interaction.editReply({ embeds: [embed] });
     } catch (err) {

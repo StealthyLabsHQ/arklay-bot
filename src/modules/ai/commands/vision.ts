@@ -5,6 +5,7 @@ import { isAvailable as claudeAvailable } from '../providers/anthropic';
 import { isAvailable as geminiAvailable } from '../providers/google';
 import { getAIConfig } from '../../../services/aiConfig';
 import { getModelDisplayInfo } from '../../../services/aiConfig';
+import { remaining } from '../../../services/usageLimit';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { logger } from '../../../services/logger';
 
@@ -130,9 +131,11 @@ const vision: CommandDef = {
         return;
       }
 
-      const { name: modelName } = getModelDisplayInfo(providerUsed as 'claude' | 'gemini', cfg.model);
-      const trimmed = text.length > 1900 ? text.slice(0, 1897) + '...' : text;
-      const footer = `-# Analyzed by **${modelName}**`;
+      const { name: modelName, source } = getModelDisplayInfo(providerUsed as 'claude' | 'gemini', cfg.model);
+      const left = remaining(interaction.user.id, cfg.model);
+      const quota = left !== null ? ` \u2022 ${left} req left today` : '';
+      const trimmed = text.length > 1800 ? text.slice(0, 1797) + '...' : text;
+      const footer = `-# Analyzed by **${modelName}** (${source})${quota}`;
 
       await interaction.editReply({ content: `${trimmed}\n${footer}` });
     } catch (err) {
