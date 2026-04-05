@@ -464,6 +464,8 @@ export class GuildQueue {
         if (this.autoplay) btn.setLabel('autoplay');
         return btn;
       })(),
+      new ButtonBuilder().setCustomId('player_voldown').setEmoji('🔉').setStyle(ButtonStyle.Secondary).setDisabled(this.volume <= 0),
+      new ButtonBuilder().setCustomId('player_volup').setEmoji('🔊').setStyle(ButtonStyle.Secondary).setDisabled(this.volume >= 100),
     );
 
     const FILTER_OPTIONS = [
@@ -564,6 +566,16 @@ export class GuildQueue {
             break;
           case 'player_autoplay':
             this.autoplay = !this.autoplay;
+            await this.updateNowPlaying();
+            await interaction.deferUpdate();
+            break;
+          case 'player_voldown':
+            this.setVolume(Math.max(0, this.volume - 10));
+            await this.updateNowPlaying();
+            await interaction.deferUpdate();
+            break;
+          case 'player_volup':
+            this.setVolume(Math.min(100, this.volume + 10));
             await this.updateNowPlaying();
             await interaction.deferUpdate();
             break;
