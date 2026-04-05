@@ -2,6 +2,42 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.0.1] - 2026-04-05
+
+### Music
+- **Now Playing revamp**: artist, album, release date, source fields in embed
+- **Previous button** (⏮): go back to the previous track from history
+- **Autoplay button** (♾): toggle autoplay directly from the player UI
+- **Shuffle toggle**: button now shows active state (green) and can be unchecked
+- **Two button rows**: ⏮ Previous, ⏸ Pause, ⏭ Skip, ⏹ Stop, 🔁 Loop | 🔀 Shuffle, ♾ Autoplay
+- `/ai-playlist`: max 200 tracks (up from 25), paginated embed with navigation buttons
+- `/ai-playlist`: multi-request AI for large playlists (>50 tracks), no duplicates
+- `/filter`: fuzzy match for text prefix (e.g. "slowed" → "slowed_reverb")
+
+### AI
+- All AI commands now display the **exact model name** and **remaining daily quota** in footer
+- Fixed model display: shows the actual model used, not the configured one (when auto-resolving)
+- `AskResult` now includes the real model ID used by the router
+- Default model changed to **Gemini 3.1 Flash Lite** (cheapest)
+
+### Text Prefix
+- **Missing argument handling**: shows usage hint instead of "An error occurred"
+- `MissingArgError` for required args → `Usage: .filter <type>`
+- Other errors → `Usage: .cmd <args> — Use /help cmd for details.`
+- Smart number parsing: numbers >100 (years) kept as text, ≤100 treated as options
+
+### Dependencies
+- Updated `@google/generative-ai` to 0.24 (fixes punycode deprecation warning)
+- Updated `yt-dlp-exec` to latest
+
+### Misc
+- Granular OAuth2 permissions (no more Administrator)
+- Multi-guild deploy: comma-separated `GUILD_ID` support
+- Invite URL with predefined permissions logged on bot startup
+- Removed all hardcoded bot name references — fully dynamic via `client.user.username`
+
+---
+
 ## [2.0.0] - 2026-04-05
 
 ### Architecture

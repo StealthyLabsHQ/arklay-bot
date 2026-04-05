@@ -3,7 +3,7 @@ import { Events, ActivityType, OAuth2Scopes, PermissionFlagsBits } from 'discord
 import type { BotModule } from '../types';
 import { logger } from '../services/logger';
 import { config } from '../services/config';
-import { TextInteractionAdapter } from './textAdapter';
+import { TextInteractionAdapter, MissingArgError } from './textAdapter';
 
 export function registerHandler(client: Client, modules: Map<string, BotModule>): void {
   // Build a flat command lookup: commandName → execute fn
@@ -117,8 +117,12 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
     try {
       await execute(adapter as unknown as ChatInputCommandInteraction);
     } catch (err) {
-      logger.error({ err }, 'Error executing text command %s', cmdName);
-      await message.channel.send('An error occurred.').catch(() => undefined);
+      if (err instanceof MissingArgError) {
+        await message.channel.send(`Usage: \`${prefix}${cmdName} <${err.argName}>\``).catch(() => undefined);
+      } else {
+        logger.error({ err }, 'Error executing text command %s', cmdName);
+        await message.channel.send(`Usage: \`${prefix}${cmdName} <args>\` — Use \`/help ${cmdName}\` for details.`).catch(() => undefined);
+      }
     }
   });
 

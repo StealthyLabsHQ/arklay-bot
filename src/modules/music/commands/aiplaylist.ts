@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } from 'discord.js';
 import type { ChatInputCommandInteraction, GuildMember, TextChannel } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask } from '../../../services/ai/router';
@@ -9,6 +9,52 @@ import { resolve } from '../utils/resolver';
 import { getQueues } from '../../../services/musicQueue';
 import { GuildQueue } from '../structures/GuildQueue';
 import { logger } from '../../../services/logger';
+
+const TRACKS_PER_PAGE = 10;
+
+function buildPlaylistPage(added: string[], page: number, userPrompt: string, count: number, footerText: string): EmbedBuilder {
+  const totalPages = Math.max(1, Math.ceil(added.length / TRACKS_PER_PAGE));
+  const start = page * TRACKS_PER_PAGE;
+  const pageItems = added.slice(start, start + TRACKS_PER_PAGE);
+
+  const list = pageItems.map((t, i) => `**${start + i + 1}.** ${t}`).join('\n');
+
+  return new EmbedBuilder()
+    .setColor(0x9b59b6)
+    .setTitle('AI Playlist')
+    .setDescription(`**Prompt:** ${userPrompt}, ${count} tracks max\n\n${list}`)
+    .setFooter({ text: `${footerText} | Page ${page + 1}/${totalPages}` });
+}
+
+function buildPageButtons(page: number, totalPages: number): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId('aip_first')
+      .setEmoji('\u23EE')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page === 0),
+    new ButtonBuilder()
+      .setCustomId('aip_prev')
+      .setEmoji('\u25C0')
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(page === 0),
+    new ButtonBuilder()
+      .setCustomId('aip_page')
+      .setLabel(`${page + 1}/${totalPages}`)
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    new ButtonBuilder()
+      .setCustomId('aip_next')
+      .setEmoji('\u25B6')
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(page >= totalPages - 1),
+    new ButtonBuilder()
+      .setCustomId('aip_last')
+      .setEmoji('\u23ED')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page >= totalPages - 1),
+  );
+}
 
 const aiplaylist: CommandDef = {
   data: new SlashCommandBuilder()
@@ -23,9 +69,9 @@ const aiplaylist: CommandDef = {
     .addIntegerOption((opt) =>
       opt
         .setName('count')
-        .setDescription('Number of tracks to generate (default 5, max 25)')
+        .setDescription('Number of tracks to generate (default 5, max 200)')
         .setMinValue(1)
-        .setMaxValue(25)
+        .setMaxValue(200)
         .setRequired(false)
     ) as SlashCommandBuilder,
 
@@ -44,28 +90,40 @@ const aiplaylist: CommandDef = {
     const count = interaction.options.getInteger('count') ?? 5;
     const guildId = interaction.guildId!;
 
-    // Ask AI for song recommendations
+    // For large counts, split into multiple AI requests (max ~50 per request for quality)
+    const allLines: string[] = [];
+    const AI_BATCH = 50;
+
     let aiResult;
-    try {
-      aiResult = await ask(
-        guildId,
-        interaction.user.id,
-        `Generate exactly ${count} song recommendations for: ${userPrompt}. Format each line as: Artist - Song Title. Output ONLY the ${count} lines, no numbering, no explanation.`
-      );
-    } catch (err) {
-      logger.error({ err }, '/ai-playlist: AI request failed');
-      await interaction.editReply('Could not generate playlist suggestions. Try again later.');
-      return;
+    for (let i = 0; i < count; i += AI_BATCH) {
+      const batchCount = Math.min(AI_BATCH, count - i);
+      const alreadyHave = allLines.length > 0
+        ? `\nDo NOT repeat any of these songs already suggested:\n${allLines.join('\n')}`
+        : '';
+
+      try {
+        aiResult = await ask(
+          guildId,
+          interaction.user.id,
+          `Generate exactly ${batchCount} song recommendations for: ${userPrompt}.${alreadyHave}\nFormat each line as: Artist - Song Title. Output ONLY the ${batchCount} lines, no numbering, no explanation.`
+        );
+        const lines = aiResult.text
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0)
+          .slice(0, batchCount);
+        allLines.push(...lines);
+      } catch (err) {
+        logger.error({ err }, '/ai-playlist: AI request failed');
+        if (allLines.length === 0) {
+          await interaction.editReply('Could not generate playlist suggestions. Try again later.');
+          return;
+        }
+        break; // Use what we have so far
+      }
     }
 
-    // Parse the lines
-    const lines = aiResult.text
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0)
-      .slice(0, count);
-
-    if (lines.length === 0) {
+    if (allLines.length === 0) {
       await interaction.editReply('AI returned no song suggestions. Try a different prompt.');
       return;
     }
@@ -85,8 +143,8 @@ const aiplaylist: CommandDef = {
     const BATCH = 5;
     let startedPlaying = false;
 
-    for (let i = 0; i < lines.length; i += BATCH) {
-      const batch = lines.slice(i, i + BATCH);
+    for (let i = 0; i < allLines.length; i += BATCH) {
+      const batch = allLines.slice(i, i + BATCH);
       const results = await Promise.allSettled(
         batch.map((line) => resolve(line, requestedBy))
       );
@@ -111,23 +169,53 @@ const aiplaylist: CommandDef = {
     }
 
     const { name: modelName, source } = getModelDisplayInfo(
-      aiResult.provider,
-      aiResult.model,
-      aiResult.provider === 'claude' && isVertexMode()
+      aiResult!.provider,
+      aiResult!.model,
+      aiResult!.provider === 'claude' && isVertexMode()
     );
-    const left = remaining(interaction.user.id, aiResult.model);
+    const left = remaining(interaction.user.id, aiResult!.model);
     const quota = left !== null ? ` \u2022 ${left} req left` : '';
+    const footerText = `${added.length} track(s) added \u2022 ${modelName} (${source})${quota}`;
 
-    const embed = new EmbedBuilder()
-      .setColor(0x9b59b6)
-      .setTitle('AI Playlist')
-      .setDescription(
-        `**Prompt:** ${userPrompt}, ${count} tracks max\n\n` +
-        added.map((t, i) => `**${i + 1}.** ${t}`).join('\n')
-      )
-      .setFooter({ text: `${added.length} track(s) added \u2022 ${modelName} (${source})${quota}` });
+    const totalPages = Math.max(1, Math.ceil(added.length / TRACKS_PER_PAGE));
 
-    await interaction.editReply({ embeds: [embed] });
+    // Single page — no buttons needed
+    if (totalPages <= 1) {
+      const embed = buildPlaylistPage(added, 0, userPrompt, count, footerText);
+      await interaction.editReply({ embeds: [embed] });
+      return;
+    }
+
+    // Multi-page with pagination buttons
+    let page = 0;
+    const embed = buildPlaylistPage(added, page, userPrompt, count, footerText);
+    const reply = await interaction.editReply({ embeds: [embed], components: [buildPageButtons(page, totalPages)] });
+
+    const collector = reply.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: 120_000,
+    });
+
+    collector.on('collect', async (btn) => {
+      if (btn.user.id !== interaction.user.id) {
+        await btn.reply({ content: 'Only the command user can navigate.', ephemeral: true });
+        return;
+      }
+
+      if (btn.customId === 'aip_first') page = 0;
+      else if (btn.customId === 'aip_prev') page = Math.max(0, page - 1);
+      else if (btn.customId === 'aip_next') page = Math.min(totalPages - 1, page + 1);
+      else if (btn.customId === 'aip_last') page = totalPages - 1;
+
+      await btn.update({
+        embeds: [buildPlaylistPage(added, page, userPrompt, count, footerText)],
+        components: [buildPageButtons(page, totalPages)],
+      });
+    });
+
+    collector.on('end', () => {
+      interaction.editReply({ components: [] }).catch(() => undefined);
+    });
   },
 };
 

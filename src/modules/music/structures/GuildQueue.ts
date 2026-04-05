@@ -623,7 +623,11 @@ export class GuildQueue {
             break;
           }
           case 'player_shuffle':
-            this.shuffle();
+            if (this.shuffled) {
+              this.shuffled = false;
+            } else {
+              this.shuffle();
+            }
             await this.updateNowPlaying();
             await btn.deferUpdate();
             break;

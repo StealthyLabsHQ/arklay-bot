@@ -1,8 +1,14 @@
 /**
  * TextInteractionAdapter — wraps a Discord Message to look like a ChatInputCommandInteraction.
- * Allows text prefix commands (.play, botname ask, etc.) to reuse slash command handlers.
+ * Allows text prefix commands (.play, arklay ask, etc.) to reuse slash command handlers.
  */
 import type { Message, TextChannel, GuildMember, User, Guild, Client } from 'discord.js';
+
+export class MissingArgError extends Error {
+  constructor(public readonly argName: string, public readonly commandName: string) {
+    super(`Missing required argument: ${argName}`);
+  }
+}
 
 export class TextInteractionAdapter {
   private _message: Message;
@@ -30,7 +36,7 @@ export class TextInteractionAdapter {
     this.guildId = message.guildId!;
     this.channel = message.channel as TextChannel;
     this.client = message.client;
-    this.options = new TextOptionsAdapter(args, message);
+    this.options = new TextOptionsAdapter(args, message, commandName);
   }
 
   get replied(): boolean { return this._replied; }
@@ -91,13 +97,15 @@ export class TextInteractionAdapter {
 class TextOptionsAdapter {
   private _raw: string;
   private _message: Message;
+  private _cmdName: string;
 
-  constructor(raw: string, message: Message) {
+  constructor(raw: string, message: Message, cmdName: string) {
     this._raw = raw.trim();
     this._message = message;
+    this._cmdName = cmdName;
   }
 
-  getString(_name: string, _required?: boolean): string | null {
+  getString(name: string, required?: boolean): string | null {
     // If the last word is a small number (≤100), strip it (likely a count/option, not part of the text)
     // Numbers > 100 are kept (years like 2024, IDs, etc.)
     const parts = this._raw.split(/\s+/);
@@ -105,10 +113,12 @@ class TextOptionsAdapter {
       const n = parseInt(parts[parts.length - 1]!, 10);
       if (n <= 100) return parts.slice(0, -1).join(' ') || null;
     }
-    return this._raw || null;
+    const val = this._raw || null;
+    if (required && !val) throw new MissingArgError(name, this._cmdName);
+    return val;
   }
 
-  getInteger(_name: string, _required?: boolean): number | null {
+  getInteger(name: string, required?: boolean): number | null {
     // Try the last word if it's a small number (≤100) — large numbers like years are not options
     const parts = this._raw.split(/\s+/);
     const last = parts[parts.length - 1];
