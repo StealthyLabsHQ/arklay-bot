@@ -134,6 +134,15 @@ export class GuildQueue {
     this.voiceChannelId = voiceChannel.id;
 
     const shoukaku = getShoukaku();
+
+    // Reuse existing connection if available
+    const existing = shoukaku.players.get(this.guildId);
+    if (existing) {
+      this.lavalinkPlayer = existing;
+      await this.lavalinkPlayer.setGlobalVolume(this.volume);
+      return;
+    }
+
     const node = shoukaku.options.nodeResolver(shoukaku.nodes);
     if (!node) throw new Error('No Lavalink node available');
 
