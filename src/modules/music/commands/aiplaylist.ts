@@ -105,7 +105,7 @@ const aiplaylist: CommandDef = {
         aiResult = await ask(
           guildId,
           interaction.user.id,
-          `You are a music expert. Generate exactly ${batchCount} REAL songs that match this request: "${userPrompt}".${alreadyHave}\nRules:\n- Only suggest songs that actually exist on streaming platforms\n- If a specific artist is mentioned, prioritize songs BY that artist\n- Do NOT invent songs or mix up artists\n- Format each line as: Artist - Song Title\n- Output ONLY the ${batchCount} lines, no numbering, no explanation, no commentary`
+          `You are a music expert. Generate exactly ${batchCount} REAL songs that match this request: "${userPrompt}".${alreadyHave}\nRules:\n- Only suggest songs that ACTUALLY exist and are well-known\n- If a specific artist is mentioned, ALL songs must be BY that artist or their members\n- Include the OFFICIAL song title as it appears on streaming platforms\n- Do NOT invent songs, remix names, or confuse artists\n- Format each line EXACTLY as: Artist - Song Title\n- Output ONLY the ${batchCount} lines, no numbering, no explanation, no commentary`
         );
         const lines = aiResult.text
           .split('\n')
