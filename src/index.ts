@@ -11,6 +11,11 @@ import { registerHandler } from './core/handler';
 import { logger } from './services/logger';
 import { initLavalink } from './services/lavalink';
 
+// Prevent unhandled rejections from crashing the bot
+process.on('unhandledRejection', (err) => {
+  logger.error({ err }, 'Unhandled rejection (bot will continue)');
+});
+
 (async () => {
   initLavalink(client);
   const modules = await loadModules(client);

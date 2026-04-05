@@ -60,7 +60,7 @@ export async function askOllama(
         messages,
         stream: false,
         think: allowThinking && isThinkingEnabled(),
-        keep_alive: process.env.OLLAMA_KEEP_ALIVE || '5m',
+        keep_alive: process.env.OLLAMA_KEEP_ALIVE === '-1' ? -1 : (process.env.OLLAMA_KEEP_ALIVE || '5m'),
         options: {
           num_predict: 512,
           temperature: 0.7,
