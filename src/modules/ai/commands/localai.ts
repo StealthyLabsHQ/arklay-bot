@@ -173,18 +173,43 @@ const localai: CommandDef = {
           return;
         }
 
+        // Auto-summarize long content (>2000 chars) to keep knowledge base efficient
+        const originalLength = content.length;
+        let summarized = false;
+        if (content.length > 2000) {
+          await interaction.deferReply({ ephemeral: true });
+          try {
+            const { ask: aiAsk } = await import('../../../services/ai/router');
+            const summary = await aiAsk(
+              'system', 'system',
+              `Summarize the following text into concise bullet points. Keep all important facts, names, dates, and details. Output ONLY the summary, no commentary. Maximum 1500 characters.\n\n<text>\n${content.slice(0, 8000)}\n</text>`,
+              'auto', false,
+            );
+            content = summary.text;
+            summarized = true;
+          } catch {
+            // If summarization fails, truncate manually
+            content = content.slice(0, 2000) + '\n[...truncated]';
+            summarized = true;
+          }
+        }
+
         const id = addKnowledge(topic, content);
         const embed = new EmbedBuilder()
           .setColor(0x00b894)
-          .setTitle('Knowledge Base — Entry Added')
+          .setTitle(`Knowledge Base — Entry Added${summarized ? ' (auto-summarized)' : ''}`)
           .addFields(
             { name: 'ID', value: `${id}`, inline: true },
             { name: 'Topic', value: topic, inline: true },
-            { name: 'Size', value: `${content.length} chars`, inline: true },
+            { name: 'Size', value: summarized ? `${originalLength} → ${content.length} chars` : `${content.length} chars`, inline: true },
           )
           .setDescription(content.slice(0, 4000))
-          .setFooter({ text: 'This knowledge will be injected into local AI context when relevant' });
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+          .setFooter({ text: summarized ? 'Content was auto-summarized for efficiency' : 'This knowledge will be injected into local AI context when relevant' });
+        if (summarized) {
+          await interaction.editReply({ embeds: [embed] });
+        } else {
+          await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
         return;
       }
 
