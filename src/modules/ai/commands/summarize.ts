@@ -8,7 +8,7 @@ import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
 import { isVertexMode } from '../providers/anthropic';
 import { logger } from '../../../services/logger';
 
-const LEARN_MORE = 'https://stealthylabs.eu/docs/specter-bot';
+const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';
 
 const COOLDOWN_MS = 30_000; // 30 s - heavy operation
 

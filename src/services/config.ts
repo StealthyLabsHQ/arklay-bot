@@ -25,7 +25,7 @@ const envSchema = z.object({
   BOT_OWNER_ID: z.string().optional(),
   BOT_OWNER_MULTIPLIER: z.coerce.number().min(0).max(20).default(5),
   BOT_PREFIX: z.string().default('.'),
-  BOT_NAME: z.string().default('specter'),
+  BOT_NAME: z.string().default('arklay'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 

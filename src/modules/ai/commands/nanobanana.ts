@@ -20,7 +20,7 @@ import {
 
 const BASE_COOLDOWN_MS  = 20_000;
 const MAX_COOLDOWN_MS   = 120_000;
-const LEARN_MORE = 'https://stealthylabs.eu/docs/specter-bot';
+const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';
 
 // Adaptive cooldown - increases on API errors, decreases on success
 let currentCooldown = BASE_COOLDOWN_MS;
