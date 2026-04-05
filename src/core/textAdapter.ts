@@ -98,15 +98,33 @@ class TextOptionsAdapter {
   }
 
   getString(_name: string, _required?: boolean): string | null {
+    // If the last word is a small number (≤100), strip it (likely a count/option, not part of the text)
+    // Numbers > 100 are kept (years like 2024, IDs, etc.)
+    const parts = this._raw.split(/\s+/);
+    if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1]!)) {
+      const n = parseInt(parts[parts.length - 1]!, 10);
+      if (n <= 100) return parts.slice(0, -1).join(' ') || null;
+    }
     return this._raw || null;
   }
 
   getInteger(_name: string, _required?: boolean): number | null {
-    const n = parseInt(this._raw, 10);
-    return isNaN(n) ? null : n;
+    // Try the last word if it's a small number (≤100) — large numbers like years are not options
+    const parts = this._raw.split(/\s+/);
+    const last = parts[parts.length - 1];
+    if (last && /^\d+$/.test(last)) {
+      const n = parseInt(last, 10);
+      if (n <= 100) return n;
+    }
+    // Fallback: try parsing the whole string (only if it's purely a number)
+    if (/^\d+$/.test(this._raw)) return parseInt(this._raw, 10);
+    return null;
   }
 
   getNumber(_name: string, _required?: boolean): number | null {
+    const parts = this._raw.split(/\s+/);
+    const last = parts[parts.length - 1];
+    if (last && /^\d+\.?\d*$/.test(last)) return parseFloat(last);
     const n = parseFloat(this._raw);
     return isNaN(n) ? null : n;
   }

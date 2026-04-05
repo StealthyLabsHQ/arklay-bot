@@ -35,7 +35,20 @@ const filter: CommandDef = {
       return;
     }
 
-    const type = interaction.options.getString('type', true);
+    let type = interaction.options.getString('type', true);
+
+    // Fuzzy match for text prefix commands (e.g. "arklay filter slowed" → "slowed_reverb")
+    const VALID_FILTERS = ['none', 'bassboost', 'nightcore', 'vaporwave', '8d', 'slowed_reverb', 'speed_reverb', 'treble', 'karaoke', 'deepbass', 'chipmunk'];
+    if (!VALID_FILTERS.includes(type)) {
+      const lower = type.toLowerCase();
+      const match = VALID_FILTERS.find((f) => f.includes(lower) || lower.includes(f));
+      if (match) {
+        type = match;
+      } else {
+        await interaction.reply({ content: `Unknown filter: \`${type}\`. Available: ${VALID_FILTERS.join(', ')}`, ephemeral: true });
+        return;
+      }
+    }
 
     try {
       await queue.setFilter(type);

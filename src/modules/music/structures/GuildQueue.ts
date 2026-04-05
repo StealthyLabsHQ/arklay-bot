@@ -46,6 +46,9 @@ const COOKIES_FILE = path.join(process.cwd(), 'cookies.txt');
 
 export interface Track {
   title: string;
+  artist?: string | null;
+  album?: string | null;
+  uploadDate?: string | null; // "YYYY-MM-DD" or null
   url: string;
   playUrl: string;
   audioUrl?: string | null;  // direct audio URL (pre-resolved, skips 2nd yt-dlp call)
@@ -84,6 +87,7 @@ export class GuildQueue {
   loopMode: LoopMode = 'off';
   volume = 50;
   autoplay = false;
+  shuffled = false;
 
   private _playStart: number | null = null;
   private _pauseStart: number | null = null;
@@ -332,6 +336,7 @@ export class GuildQueue {
       const j = Math.floor(Math.random() * (i + 1));
       [this.tracks[i], this.tracks[j]] = [this.tracks[j]!, this.tracks[i]!];
     }
+    this.shuffled = true;
   }
 
   async seekTo(seconds: number): Promise<void> {
@@ -465,28 +470,62 @@ export class GuildQueue {
     const track = this.currentTrack;
     if (!track) return new EmbedBuilder().setColor(0x5865f2).setDescription('No track playing.');
 
-    const loopTag = this.loopMode !== 'off' ? ` | Loop: ${this.loopMode}` : '';
-    const filterTag = this.activeFilter !== 'none' ? ` | Filter: ${this.activeFilter}` : '';
     const isPaused = !!this._pauseStart;
 
     const embed = new EmbedBuilder()
       .setColor(sourceColor(track.source))
-      .setAuthor({ name: isPaused ? 'Paused' : 'Now Playing' })
+      .setAuthor({ name: isPaused ? '\u23F8 Paused' : '\u25B6 Now Playing' })
       .setTitle(track.title)
-      .setURL(track.url)
-      .addFields(
-        { name: 'Duration',     value: track.durationStr,     inline: true },
-        { name: 'Requested by', value: track.requestedBy,     inline: true },
-        { name: 'Queue',        value: `${this.tracks.length} track${this.tracks.length !== 1 ? 's' : ''} remaining`, inline: true },
-      )
-      .setFooter({ text: `Volume: ${this.volume}%${loopTag}${filterTag}` });
+      .setURL(track.url);
+
+    // Artist
+    if (track.artist) {
+      embed.addFields({ name: 'Artist', value: track.artist, inline: true });
+    }
+
+    embed.addFields(
+      { name: 'Duration',     value: track.durationStr,     inline: true },
+      { name: 'Requested by', value: track.requestedBy,     inline: true },
+    );
+
+    // Album
+    if (track.album) {
+      embed.addFields({ name: 'Album', value: track.album, inline: true });
+    }
+
+    // Upload date
+    if (track.uploadDate) {
+      embed.addFields({ name: 'Released', value: track.uploadDate, inline: true });
+    }
+
+    embed.addFields(
+      { name: 'Queue', value: `${this.tracks.length} track${this.tracks.length !== 1 ? 's' : ''} remaining`, inline: true },
+    );
+
+    // Source
+    const sourceLabel = track.source === 'spotify' ? 'Spotify' : track.source === 'soundcloud' ? 'SoundCloud' : 'YouTube';
+    embed.addFields({ name: 'Source', value: sourceLabel, inline: true });
+
+    // Footer: volume + active modes
+    const tags: string[] = [`Volume: ${this.volume}%`];
+    if (this.loopMode !== 'off') tags.push(`Loop: ${this.loopMode}`);
+    if (this.shuffled) tags.push('Shuffled');
+    if (this.autoplay) tags.push('Autoplay');
+    if (this.activeFilter !== 'none') tags.push(`Filter: ${this.activeFilter}`);
+    embed.setFooter({ text: tags.join(' | ') });
+
     if (track.thumbnail) embed.setThumbnail(track.thumbnail);
     return embed;
   }
 
-  private buildPlayerButtons(): ActionRowBuilder<ButtonBuilder> {
+  private buildPlayerButtons(): ActionRowBuilder<ButtonBuilder>[] {
     const isPaused = !!this._pauseStart;
-    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId('player_previous')
+        .setEmoji('\u23EE')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(this.history.length === 0),
       new ButtonBuilder()
         .setCustomId('player_pauseresume')
         .setEmoji(isPaused ? '\u25B6' : '\u23F8')
@@ -507,16 +546,27 @@ export class GuildQueue {
         if (this.loopMode !== 'off') btn.setLabel(this.loopMode);
         return btn;
       })(),
+    );
+    const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId('player_shuffle')
         .setEmoji('\uD83D\uDD00')
-        .setStyle(ButtonStyle.Secondary),
+        .setStyle(this.shuffled ? ButtonStyle.Success : ButtonStyle.Secondary),
+      (() => {
+        const btn = new ButtonBuilder()
+          .setCustomId('player_autoplay')
+          .setEmoji('\u267E')
+          .setStyle(this.autoplay ? ButtonStyle.Success : ButtonStyle.Secondary);
+        if (this.autoplay) btn.setLabel('autoplay');
+        return btn;
+      })(),
     );
+    return [row1, row2];
   }
 
   async updateNowPlaying(): Promise<void> {
     const embed = this.buildNowPlayingEmbed();
-    const components = [this.buildPlayerButtons()];
+    const components = this.buildPlayerButtons();
 
     try {
       if (this.nowPlayingMessage) {
@@ -574,6 +624,20 @@ export class GuildQueue {
           }
           case 'player_shuffle':
             this.shuffle();
+            await this.updateNowPlaying();
+            await btn.deferUpdate();
+            break;
+          case 'player_previous': {
+            if (this.history.length > 0) {
+              const prev = this.history.shift()!;
+              this.tracks.unshift(prev);
+              this.skip();
+            }
+            await btn.deferUpdate();
+            break;
+          }
+          case 'player_autoplay':
+            this.autoplay = !this.autoplay;
             await this.updateNowPlaying();
             await btn.deferUpdate();
             break;

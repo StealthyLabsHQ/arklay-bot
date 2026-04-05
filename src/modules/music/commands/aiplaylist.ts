@@ -79,30 +79,35 @@ const aiplaylist: CommandDef = {
 
     queue.connect(voiceChannel, member);
 
-    // Resolve each song
+    // Resolve songs in parallel batches for speed
     const requestedBy = `<@${interaction.user.id}>`;
     const added: string[] = [];
+    const BATCH = 5;
+    let startedPlaying = false;
 
-    for (const line of lines) {
-      try {
-        const result = await resolve(line, requestedBy);
-        if (result.tracks.length > 0) {
-          queue.tracks.push(result.tracks[0]!);
-          added.push(result.tracks[0]!.title);
+    for (let i = 0; i < lines.length; i += BATCH) {
+      const batch = lines.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map((line) => resolve(line, requestedBy))
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.tracks.length > 0) {
+          queue.tracks.push(r.value.tracks[0]!);
+          added.push(r.value.tracks[0]!.title);
         }
-      } catch (err) {
-        logger.warn({ err }, '/ai-playlist: failed to resolve "%s"', line);
+      }
+
+      // Start playing as soon as first batch is resolved
+      if (!startedPlaying && added.length > 0 && !queue.isPlaying) {
+        startedPlaying = true;
+        queue.playNext().catch((err) => logger.error({ err }, '/ai-playlist: playNext failed'));
       }
     }
 
     if (added.length === 0) {
       await interaction.editReply('Could not resolve any of the suggested songs.');
       return;
-    }
-
-    // Start playing if not already
-    if (!queue.isPlaying) {
-      queue.playNext().catch((err) => logger.error({ err }, '/ai-playlist: playNext failed'));
     }
 
     const { name: modelName, source } = getModelDisplayInfo(

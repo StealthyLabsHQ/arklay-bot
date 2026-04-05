@@ -38,8 +38,12 @@ interface YtDlpEntry {
   duration?: number;
   thumbnail?: string;
   thumbnails?: Array<{ url: string }>;
+  channel?: string;
+  uploader?: string;
+  artist?: string;
+  album?: string;
+  upload_date?: string; // "YYYYMMDD"
   entries?: YtDlpEntry[];
-  // flat playlist / search may return only these
   ie_key?: string;
 }
 
@@ -74,8 +78,16 @@ function trackFromYtDlp(data: YtDlpEntry, source: string, requestedBy: string): 
     '';
   // If yt-dlp returned a direct audio URL, store it in audioUrl for instant playback
   const directAudioUrl = data.url && data.url !== webpageUrl ? data.url : null;
+  const artist = data.artist ?? data.channel ?? data.uploader ?? null;
+  const uploadDate = data.upload_date
+    ? `${data.upload_date.slice(0, 4)}-${data.upload_date.slice(4, 6)}-${data.upload_date.slice(6, 8)}`
+    : null;
+
   return {
     title:       data.title     ?? 'Unknown title',
+    artist,
+    album:       data.album     ?? null,
+    uploadDate,
     url:         webpageUrl,
     playUrl:     webpageUrl,
     audioUrl:    directAudioUrl,

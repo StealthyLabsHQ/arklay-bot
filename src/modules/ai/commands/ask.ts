@@ -10,7 +10,7 @@ import { logger } from '../../../services/logger';
 
 const BASE_COOLDOWN_MS = 8_000;
 const MAX_COOLDOWN_MS  = 60_000;
-const LEARN_MORE = 'https://stealthylabs.eu/docs/specter-bot';
+const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';
 
 let askCooldown    = BASE_COOLDOWN_MS;
 let lastAskError   = 0;
