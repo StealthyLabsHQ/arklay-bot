@@ -11,8 +11,8 @@ Built by [StealthyLabs](https://stealthylabs.eu).
 **Music** (22 commands)
 Play music from YouTube, Spotify, and SoundCloud with full queue management, audio filters, lyrics, persistent player UI with buttons, auto-resume on restart, AI-generated playlists, autoplay, and track history.
 
-**AI** (9 commands)
-Chat with Claude (Anthropic) or Gemini (Google), generate images with Nano Banana 2, translate text, analyze images, catch up on conversations, summarize webpages, and more.
+**AI** (10 commands + local AI management)
+Chat with Claude (Anthropic), Gemini (Google), or a local model via Ollama (Gemma 4, Llama, Mistral, etc.). Generate images with Nano Banana 2, translate text, analyze images, catch up on conversations, summarize webpages. Bot owner can customize the local AI system prompt, knowledge base (RAG), and thinking mode.
 
 **Moderation** (12 commands)
 Ban, kick, timeout, warn, mute, lockdown, slowmode, clear messages, nuke channels, manage bot admin roles, and toggle roles.
@@ -20,14 +20,14 @@ Ban, kick, timeout, warn, mute, lockdown, slowmode, clear messages, nuke channel
 **Utility** (23 commands)
 Ping, user/server/role/channel info, avatar, banner, polls, reminders, math, dictionary, crypto prices, weather, AFK status, emoji info, steal emojis, snipe deleted/edited messages, color preview, timestamp converter, bot info, and invite link.
 
-**Fun** (10 commands)
-Magic 8-ball, random choice, coin flip, dice rolls, trivia (with AI category), Reddit memes (with search), guess the song, rock paper scissors, rate anything, and fun percentages.
+**Fun** (11 commands)
+Magic 8-ball, random choice, coin flip, dice rolls, trivia (with AI category), Reddit memes (with search), GIF search (Giphy), guess the song, rock paper scissors, rate anything, and fun percentages.
 
 **Configuration** (7 subcommands)
 Auto-role, welcome messages, mod log channel, temporary voice channels, AI auto-moderation, and server language.
 
 **Text Prefix Commands**
-All commands work with text prefix (`.play`, `specter ask`, etc.). Both prefix and bot name are configurable via `.env`.
+All commands work with text prefix (`.play`, `arklay ask`, etc.). Both prefix and bot name are configurable via `.env`. Reply to any AI message to continue the conversation.
 
 **Context Menus**
 Right-click a message to steal its sticker.
@@ -163,8 +163,12 @@ Edit `.env` and fill in your values:
 | `GOOGLE_AI_API_KEY` | No | Enables Gemini AI + image generation |
 | `SPOTIFY_CLIENT_ID` | No | Enables Spotify link resolution |
 | `SPOTIFY_CLIENT_SECRET` | No | Enables Spotify link resolution |
+| `GIPHY_API_KEY` | No | Enables `/gif` command (free at [developers.giphy.com](https://developers.giphy.com/)) |
+| `OLLAMA_HOST` | No | Ollama server address (default `http://localhost:11434`) |
+| `OLLAMA_MODEL` | No | Local AI model (default `gemma4:26b`) |
+| `OLLAMA_KEEP_ALIVE` | No | How long model stays in RAM after last request (default `5m`, use `-1` for permanent) |
 
-At least one AI key (Anthropic or Google) is needed for the AI module. If neither is set, the AI module is disabled automatically.
+At least one AI provider (Anthropic, Google, or Ollama) is needed for the AI module. If none is set, the AI module is disabled automatically.
 
 ### 3. Discord Developer Portal
 
@@ -233,15 +237,23 @@ The music player features a persistent Now Playing embed with interactive button
 
 | Command | Description |
 |---|---|
-| `/ask <question> [provider]` | Ask Claude or Gemini |
+| `/ask <question> [provider]` | Ask Claude, Gemini, or local AI |
 | `/summarize [messages] [provider]` | Summarize recent channel messages |
 | `/nanobanana <prompt> [image]` | Generate an image with Gemini (Nano Banana 2) |
-| `/setmodel [model]` | Choose your personal AI model |
+| `/setmodel cloud <model>` | Choose a cloud AI model (Claude or Gemini) |
+| `/setmodel local` | Switch to local AI (Ollama) |
+| `/setmodel show` | Show your current AI model |
+| `/setmodel reset` | Reset to default model |
 | `/translate <language> <text>` | AI-powered translation |
 | `/roast <user>` | Contextual AI roast (uses target's recent messages) |
 | `/vision <image> <prompt>` | Analyze an image with AI (Claude or Gemini) |
 | `/catchup` | AI-powered summary of recent channel activity |
 | `/tldr <url>` | Summarize a webpage with AI |
+| `/localai prompt [text]` | View or set custom system prompt for local AI (owner only) |
+| `/localai knowledge-add <topic> <content>` | Add to knowledge base — RAG (owner only) |
+| `/localai knowledge-list` | List knowledge base entries (owner only) |
+| `/localai thinking <enabled>` | Toggle thinking mode (owner only) |
+| `/localai status` | Show local AI configuration (owner only) |
 
 ### Moderation (admin only)
 
@@ -301,6 +313,7 @@ The music player features a persistent Now Playing embed with interactive button
 | `/dice [count] [sides]` | Roll dice |
 | `/trivia [category]` | Trivia question with buttons (includes AI-generated category) |
 | `/meme [search]` | Random meme from Reddit (optional search across all subreddits) |
+| `/gif <query> [mode]` | Search GIFs via Giphy (search, exact, random) |
 | `/guesssong` | Guess the song from a hint (requires active music queue) |
 | `/rps <choice>` | Rock paper scissors vs the bot |
 | `/rate <thing>` | Rate something 0-10 with progress bar |
@@ -362,15 +375,18 @@ src/
     ├── database.ts             Conversation history
     ├── musicQueue.ts           Shared music queue map
     ├── musicResume.ts          Queue persistence for auto-resume
+    ├── localaiConfig.ts        Local AI system prompt + knowledge base (RAG)
+    ├── thinkingTimer.ts        "Thinking..." timer for AI commands
     └── ai/
         ├── anthropic.ts        Claude provider
         ├── google.ts           Gemini provider
+        ├── ollama.ts           Ollama provider (local AI)
         └── router.ts           AI provider router
 ```
 
 Each module is independent and can be enabled/disabled. Modules never import from each other, only from `services/`.
 
-Data is persisted in SQLite (`data/bot.db`) with 8 tables: warnings, guild_config, ai_config, image_config, conversation_history, usage_limits, bot_admin_roles, and music_resume.
+Data is persisted in SQLite (`data/bot.db`) with 10 tables: warnings, guild_config, ai_config, image_config, conversation_history, usage_limits, bot_admin_roles, music_resume, localai_config, and localai_knowledge.
 
 ## AI Models
 
@@ -384,7 +400,14 @@ Data is persisted in SQLite (`data/bot.db`) with 8 tables: warnings, guild_confi
 - Gemini 3.1 Pro Preview (most powerful)
 - Gemini 3.1 Flash Lite (cheapest)
 
-Each user can choose their preferred model with `/setmodel`.
+### Local AI (Ollama)
+- Any model supported by Ollama (Gemma 4, Llama, Mistral, Qwen, etc.)
+- Model configured via `OLLAMA_MODEL` in `.env`
+- No daily limits, no API costs
+- Custom system prompt and knowledge base (RAG) via `/localai`
+- Optional thinking mode for reasoning-heavy tasks
+
+Each user can switch between cloud and local with `/setmodel cloud` or `/setmodel local`.
 
 ## Image Generation
 
