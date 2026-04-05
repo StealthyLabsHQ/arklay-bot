@@ -189,6 +189,10 @@ export class GuildQueue {
     this.lavalinkPlayer.on('exception', (err) => {
       logger.error({ err }, '[Lavalink] Track exception in guild %s', this.guildId);
       this.isPlaying = false;
+      // Clear encoded data on remaining tracks to force re-resolution via SoundCloud
+      for (const t of this.tracks) {
+        if (t.encoded) t.encoded = null;
+      }
       if (this.tracks.length > 0) {
         this.playNext().catch(() => undefined);
       }
