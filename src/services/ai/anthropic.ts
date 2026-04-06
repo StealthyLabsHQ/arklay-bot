@@ -57,6 +57,63 @@ export interface ClaudeResult {
   usage: TokenUsage;
 }
 
+export async function askClaudeWithImage(
+  prompt: string,
+  imageBase64: string,
+  imageMime: string,
+  userId?: string,
+): Promise<ClaudeResult> {
+  const model = getAIConfig(userId).model;
+
+  try {
+    const response = await getClient().messages.create({
+      model,
+      max_tokens: 1024,
+      system: [
+        {
+          type: 'text',
+          text: getEffectiveCloudPrompt(),
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: imageMime as 'image/png', data: imageBase64 } },
+          { type: 'text', text: prompt },
+        ],
+      }],
+    });
+
+    const block = response.content[0];
+    if (block.type !== 'text') throw new SafetyError('Non-text response from Claude');
+
+    const u = response.usage as Anthropic.Usage & {
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
+    };
+
+    return {
+      text: block.text,
+      usage: {
+        inputTokens: u.input_tokens,
+        outputTokens: u.output_tokens,
+        cacheReadTokens: u.cache_read_input_tokens ?? 0,
+        cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+      },
+    };
+  } catch (err) {
+    if (err instanceof SafetyError) throw err;
+    const e = err as Record<string, unknown>;
+    const status = (e['status'] as number | undefined) ?? 0;
+    const rawMsg = (e['message'] as string | undefined) ?? String(err);
+    if (status === 429) throw new RateLimitError('Claude rate limit reached');
+    if (status === 400 || status === 422) throw new SafetyError('Content refused by Claude');
+    if (status >= 500 || rawMsg.includes('fetch')) throw new NetworkError('Claude service unavailable');
+    throw new NetworkError(`Claude error (${status}): ${rawMsg}`);
+  }
+}
+
 export async function askClaude(
   history: ConversationMessage[],
   newPrompt: string,

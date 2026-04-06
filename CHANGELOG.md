@@ -2,6 +2,48 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.5.0] - 2026-04-06
+
+### Music
+- `/favorites add|list|play|remove|clear` — save, browse, and play your favorite tracks (SQLite, max 100)
+- `/playlist create|save|load|show|list|delete` — personal playlists with queue save/load (max 10 playlists, 200 tracks each)
+- `/history` — show the 20 most recently played tracks
+- `/247` — 24/7 mode: bot stays connected to voice even when queue is empty
+- Removed `/ai-playlist` (YouTube broken, SoundCloud limited catalogue)
+
+### AI
+- `/code <prompt> <model> [file] [lang]` — generate or analyze code with temp 0 and full reasoning
+  - Model choice: Claude Sonnet 4.6, Claude Opus 4.6, Gemini 3.1 Pro Thinking
+  - Supports code file upload (.ts, .py, .js, etc.) and image/screenshot analysis
+  - 4096 max tokens, Gemini Pro with thinking budget 8192
+  - Auto-splits long responses across multiple Discord messages
+- `/ask` now supports optional image attachment for visual analysis (Claude vision + Gemini multimodal)
+- `/cloudai prompt|reset-prompt|status` — new dedicated command for cloud AI prompt management (moved from `/localai`)
+- `/localai` commands now conditional — hidden when `OLLAMA_ENABLED=false`
+- `/setmodel local` hidden when Ollama is disabled
+- `OLLAMA_ENABLED` env var — explicit on/off toggle for local AI (`true`/`false`)
+
+### Security
+- Prompt injection protection on `/roast`, `/catchup`, and automod — user data escaped and wrapped in `<user_data>` tags
+- Automod: `message.content` HTML-escaped before XML tags to prevent `</user_message>` breakout
+- Spotify pagination capped at 100 pages to prevent infinite loops
+- `cloudai` and `localai` added to text prefix blacklist (prevents silent no-reply)
+- Cooldown map cleanup: evicts entries >1h old when exceeding 50k entries
+
+### Fixes
+- `/meme` on VPS — realistic browser User-Agent (Chrome) instead of `DiscordBot/1.0` (blocked by Reddit on VPS IPs), 10s timeout, improved image detection
+- Unsafe `JSON.parse` in music resume wrapped in try/catch (prevents crash on corrupted DB)
+- Silent error swallowing in GuildQueue exception handler and button collector now logged
+- `isBotOwner()` deduplicated — extracted to `config.ts` (was defined 3x)
+- `readTextAttachment()` helper to reduce code duplication in file upload commands
+
+### Misc
+- `start.bat` reads `OLLAMA_ENABLED` from `.env` — skips Ollama launch when disabled
+- Updated `.env.example` with `OLLAMA_ENABLED`
+- SQLite schema: added `user_favorites`, `user_playlists`, `playlist_tracks` tables
+
+---
+
 ## [2.4.0] - 2026-04-05
 
 ### AI

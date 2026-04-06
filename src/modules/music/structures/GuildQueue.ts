@@ -111,6 +111,7 @@ export class GuildQueue {
   volume = 50;
   autoplay = false;
   shuffled = false;
+  stayConnected = false;
   voiceChannelId: string | null = null;
 
   private lavalinkPlayer: Player | null = null;
@@ -203,7 +204,7 @@ export class GuildQueue {
         if (t.encoded) t.encoded = null;
       }
       if (this.tracks.length > 0) {
-        this.playNext().catch(() => undefined);
+        this.playNext().catch((e) => logger.warn({ err: e }, 'playNext failed in exception handler'));
       }
     });
   }
@@ -595,7 +596,7 @@ export class GuildQueue {
           default:
             await interaction.deferUpdate();
         }
-      } catch { await interaction.deferUpdate().catch(() => undefined); }
+      } catch (err) { logger.warn({ err }, 'Button interaction error'); await interaction.deferUpdate().catch(() => undefined); }
     });
 
     collector.on('end', () => { this.disableNowPlaying(); });
@@ -618,6 +619,7 @@ export class GuildQueue {
   }
 
   private scheduleDestroy(): void {
+    if (this.stayConnected) return;
     this.cancelDestroyTimer();
     const IDLE_TIMEOUT = 5 * 60_000;
     this.destroyTimer = setTimeout(() => {

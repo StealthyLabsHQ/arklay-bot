@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
-import { ask, NetworkError, SafetyError, RateLimitError, DailyLimitError, type Provider } from '../router';
+import { ask, askWithImage, NetworkError, SafetyError, RateLimitError, DailyLimitError, type Provider } from '../router';
 import { withThinkingTimer } from '../../../services/thinkingTimer';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { remaining } from '../../../services/usageLimit';
@@ -40,6 +40,9 @@ const askCommand: CommandDef = {
           { name: 'Ollama (Local)', value: 'ollama' }
         )
     )
+    .addAttachmentOption((opt) =>
+      opt.setName('image').setDescription('Attach an image for visual analysis').setRequired(false)
+    )
     .addStringOption((opt) =>
       opt
         .setName('lang')
@@ -62,13 +65,27 @@ const askCommand: CommandDef = {
     const rawProvider = interaction.options.getString('provider') ?? 'auto';
     const provider = (['auto', 'claude', 'gemini', 'ollama'].includes(rawProvider) ? rawProvider : 'auto') as Provider;
     const lang     = interaction.options.getString('lang');
+    const image    = interaction.options.getAttachment('image');
 
     try {
       const finalPrompt = lang ? `[Respond in ${lang}] ${question}` : question;
-      const result = await withThinkingTimer(
-        interaction,
-        ask(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, provider),
-      );
+
+      let result;
+      if (image && image.contentType?.startsWith('image/')) {
+        const res = await fetch(image.url);
+        const buf = Buffer.from(await res.arrayBuffer());
+        const base64 = buf.toString('base64');
+        const mime = image.contentType || 'image/png';
+        result = await withThinkingTimer(
+          interaction,
+          askWithImage(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, base64, mime, provider),
+        );
+      } else {
+        result = await withThinkingTimer(
+          interaction,
+          ask(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, provider),
+        );
+      }
 
       const { name, source } = getModelDisplayInfo(
         result.provider,

@@ -19,16 +19,19 @@ import lyrics from './commands/lyrics';
 import seek from './commands/seek';
 import filter from './commands/filter';
 import skipto from './commands/skipto';
-import aiplaylist from './commands/aiplaylist';
 import replay from './commands/replay';
 import previous from './commands/previous';
 import move from './commands/move';
 import autoplay from './commands/autoplay';
+import favorites from './commands/favorites';
+import playlist from './commands/playlist';
+import historyCmd from './commands/history';
+import twentyfourseven from './commands/twentyfourseven';
 
 const musicModule: BotModule = {
   name: 'music',
   enabled: true,
-  commands: [play, pause, resume, skip, stop, queue, nowplaying, loop, volume, shuffle, remove, save, lyrics, seek, filter, skipto, aiplaylist, replay, previous, move, autoplay],
+  commands: [play, pause, resume, skip, stop, queue, nowplaying, loop, volume, shuffle, remove, save, lyrics, seek, filter, skipto, replay, previous, move, autoplay, favorites, playlist, historyCmd, twentyfourseven],
 
   async onLoad(client: Client): Promise<void> {
     logger.info('music: module loaded (yt-dlp backend)');

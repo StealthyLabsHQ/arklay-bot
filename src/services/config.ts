@@ -15,6 +15,7 @@ const envSchema = z.object({
   // Giphy GIF API
   GIPHY_API_KEY: z.string().optional(),
   // Ollama (local AI)
+  OLLAMA_ENABLED: z.coerce.boolean().default(false),
   OLLAMA_HOST: z.string().optional(),
   OLLAMA_MODEL: z.string().optional(),
   OLLAMA_KEEP_ALIVE: z.string().default('5m'),
@@ -38,3 +39,7 @@ if (!result.success) {
 
 export const config = result.data;
 export type Config = typeof config;
+
+export function isBotOwner(userId: string): boolean {
+  return !!config.BOT_OWNER_ID && userId === config.BOT_OWNER_ID;
+}

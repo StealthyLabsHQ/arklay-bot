@@ -1,5 +1,6 @@
 // Per-user cooldown store. Keys: `${commandName}:${userId}`
 const cooldowns = new Map<string, number>();
+const MAX_ENTRIES = 50_000;
 
 /**
  * Returns true if the user is on cooldown, false if they can proceed.
@@ -11,6 +12,12 @@ export function checkCooldown(commandName: string, userId: string, cooldownMs: n
   const last = cooldowns.get(key) ?? 0;
 
   if (now - last < cooldownMs) return true; // still on cooldown
+
+  if (cooldowns.size > MAX_ENTRIES) {
+    for (const [k, ts] of cooldowns) {
+      if (now - ts > 3_600_000) cooldowns.delete(k);
+    }
+  }
 
   cooldowns.set(key, now);
   return false;

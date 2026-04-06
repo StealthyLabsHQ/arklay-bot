@@ -50,6 +50,37 @@ export interface GeminiResult {
   outputTokens: number;
 }
 
+export async function askGeminiWithImage(
+  prompt: string,
+  imageBase64: string,
+  imageMime: string,
+  userId?: string,
+): Promise<GeminiResult> {
+  try {
+    const cfg = getAIConfig(userId);
+    const modelId = cfg.provider === 'gemini' ? cfg.model : 'gemini-3.1-flash-lite-preview';
+    const model = getClient().getGenerativeModel({
+      model: modelId,
+      systemInstruction: getCloudPrompt() ?? DEFAULT_SYSTEM_INSTRUCTION,
+      generationConfig: { maxOutputTokens: 1024 },
+    });
+
+    const result = await model.generateContent([
+      { inlineData: { mimeType: imageMime, data: imageBase64 } },
+      prompt,
+    ] as Parameters<typeof model.generateContent>[0]);
+
+    const meta = result.response.usageMetadata;
+    return {
+      text: result.response.text(),
+      inputTokens: meta?.promptTokenCount ?? 0,
+      outputTokens: meta?.candidatesTokenCount ?? 0,
+    };
+  } catch (err) {
+    return handleGoogleError(err);
+  }
+}
+
 export async function askGemini(
   history: ConversationMessage[],
   newPrompt: string,

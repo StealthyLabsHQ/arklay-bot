@@ -90,6 +90,39 @@ db.exec(`
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
 
+  CREATE TABLE IF NOT EXISTS user_favorites (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id   TEXT NOT NULL,
+    title     TEXT NOT NULL,
+    url       TEXT NOT NULL,
+    duration  TEXT NOT NULL DEFAULT '??:??',
+    source    TEXT NOT NULL DEFAULT 'unknown',
+    saved_at  INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_favorites_user ON user_favorites(user_id);
+
+  CREATE TABLE IF NOT EXISTS user_playlists (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id   TEXT NOT NULL,
+    name      TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_playlists_user ON user_playlists(user_id);
+
+  CREATE TABLE IF NOT EXISTS playlist_tracks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    playlist_id INTEGER NOT NULL REFERENCES user_playlists(id) ON DELETE CASCADE,
+    title       TEXT NOT NULL,
+    url         TEXT NOT NULL,
+    duration    TEXT NOT NULL DEFAULT '??:??',
+    source      TEXT NOT NULL DEFAULT 'unknown',
+    position    INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_playlist_tracks ON playlist_tracks(playlist_id);
+
   CREATE TABLE IF NOT EXISTS music_resume (
     guild_id          TEXT PRIMARY KEY,
     voice_channel_id  TEXT NOT NULL,

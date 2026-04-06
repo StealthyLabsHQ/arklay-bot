@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { setAIConfig, getAIConfig, resetAIConfig, MODELS, type AIProvider } from '../../../services/aiConfig';
+import { isAvailable as ollamaAvailable } from '../../../services/ai/ollama';
 
 const CLOUD_CHOICES = [
   { name: 'Claude Sonnet 4.6', value: 'claude|claude-sonnet-4-6' },
@@ -13,8 +14,10 @@ const CLOUD_CHOICES = [
 ];
 
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:26b';
+const ollamaEnabled = ollamaAvailable();
 
-const ALL_CHOICES = [...CLOUD_CHOICES, { name: `${OLLAMA_MODEL} (local)`, value: `ollama|${OLLAMA_MODEL}` }];
+const ALL_CHOICES = [...CLOUD_CHOICES];
+if (ollamaEnabled) ALL_CHOICES.push({ name: `${OLLAMA_MODEL} (local)`, value: `ollama|${OLLAMA_MODEL}` });
 
 function providerColor(p: string): number {
   if (p === 'claude') return 0xd4a843;
@@ -28,37 +31,42 @@ function providerLabel(p: string): string {
   return 'Google Gemini';
 }
 
+const builder = new SlashCommandBuilder()
+  .setName('setmodel')
+  .setDescription('Choose your personal AI model')
+  .addSubcommand((sub) =>
+    sub
+      .setName('cloud')
+      .setDescription('Use a cloud AI model (Claude or Gemini)')
+      .addStringOption((opt) =>
+        opt
+          .setName('model')
+          .setDescription('Cloud model to use')
+          .setRequired(true)
+          .addChoices(...CLOUD_CHOICES)
+      )
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName('show')
+      .setDescription('Show your current AI model settings')
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName('reset')
+      .setDescription('Reset to the default model')
+  );
+
+if (ollamaEnabled) {
+  builder.addSubcommand((sub) =>
+    sub
+      .setName('local')
+      .setDescription(`Switch to local AI (${OLLAMA_MODEL})`)
+  );
+}
+
 const setmodel: CommandDef = {
-  data: new SlashCommandBuilder()
-    .setName('setmodel')
-    .setDescription('Choose your personal AI model')
-    .addSubcommand((sub) =>
-      sub
-        .setName('cloud')
-        .setDescription('Use a cloud AI model (Claude or Gemini)')
-        .addStringOption((opt) =>
-          opt
-            .setName('model')
-            .setDescription('Cloud model to use')
-            .setRequired(true)
-            .addChoices(...CLOUD_CHOICES)
-        )
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('local')
-        .setDescription(`Switch to local AI (${OLLAMA_MODEL})`)
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('show')
-        .setDescription('Show your current AI model settings')
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('reset')
-        .setDescription('Reset to the default model')
-    ) as SlashCommandBuilder,
+  data: builder as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const userId = interaction.user.id;
@@ -70,7 +78,13 @@ const setmodel: CommandDef = {
       const lower = raw.toLowerCase().trim();
       if (!lower || lower === 'show') return showCurrent(interaction, userId);
       if (lower === 'reset') return doReset(interaction, userId);
-      if (lower === 'local') return applyModel(interaction, userId, `ollama|${OLLAMA_MODEL}`);
+      if (lower === 'local') {
+        if (!ollamaEnabled) {
+          await interaction.reply({ content: 'Local AI (Ollama) is not configured on this instance.', ephemeral: true });
+          return;
+        }
+        return applyModel(interaction, userId, `ollama|${OLLAMA_MODEL}`);
+      }
       if (lower === 'cloud') {
         const list = CLOUD_CHOICES.map((c) => `\`${c.name}\``).join(', ');
         await interaction.reply({ content: `Cloud models: ${list}\nUsage: \`.setmodel <model name>\``, ephemeral: true });

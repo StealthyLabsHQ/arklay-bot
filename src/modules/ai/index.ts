@@ -15,7 +15,8 @@ import nanobanana from './commands/nanobanana';
 import translate from './commands/translate';
 import roast from './commands/roast';
 
-const hasAnyProvider = claudeAvailable() || geminiAvailable() || ollamaAvailable();
+const ollamaEnabled = ollamaAvailable();
+const hasAnyProvider = claudeAvailable() || geminiAvailable() || ollamaEnabled;
 
 if (!hasAnyProvider) {
   logger.warn('ai module: No AI provider keys found - module disabled');
@@ -26,16 +27,20 @@ if (!hasAnyProvider) {
   }
   if (geminiAvailable()) logger.info('ai module: Gemini provider enabled');
   else logger.info('ai module: /nanobanana generation disabled (no GOOGLE_AI_API_KEY)');
+  if (ollamaEnabled) logger.info('ai module: Ollama provider enabled (local)');
 }
 
 import vision from './commands/vision';
 import catchup from './commands/catchup';
 import tldr from './commands/tldr';
+import cloudai from './commands/cloudai';
 import localai from './commands/localai';
+import code from './commands/code';
 
-if (ollamaAvailable()) logger.info('ai module: Ollama provider enabled (local)');
+const commands = [askCommand, summarize, setmodel, nanobanana, translate, roast, vision, catchup, tldr, cloudai, code];
 
-const commands = [askCommand, summarize, setmodel, nanobanana, translate, roast, vision, catchup, tldr, localai];
+// Only register /localai when Ollama is configured
+if (ollamaEnabled) commands.push(localai);
 
 const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';
 

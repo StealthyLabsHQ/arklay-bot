@@ -54,7 +54,7 @@ export function loadAllQueueStates(): QueueState[] {
     guildId: r.guild_id,
     voiceChannelId: r.voice_channel_id,
     textChannelId: r.text_channel_id,
-    tracks: JSON.parse(r.tracks_json) as Track[],
+    tracks: (() => { try { return JSON.parse(r.tracks_json) as Track[]; } catch { return []; } })(),
     volume: r.volume,
     loopMode: r.loop_mode,
     filter: r.filter,

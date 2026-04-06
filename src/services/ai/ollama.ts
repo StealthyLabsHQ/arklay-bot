@@ -14,6 +14,10 @@ const DEFAULT_SYSTEM =
   'Keep responses concise and Discord-friendly (under 2000 characters).';
 
 export function isAvailable(): boolean {
+  const enabled = process.env.OLLAMA_ENABLED?.toLowerCase();
+  if (enabled === 'false' || enabled === '0') return false;
+  if (enabled === 'true' || enabled === '1') return true;
+  // Fallback: auto-detect from OLLAMA_HOST or OLLAMA_MODEL presence
   return !!process.env.OLLAMA_HOST || !!process.env.OLLAMA_MODEL;
 }
 

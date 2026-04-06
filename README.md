@@ -8,11 +8,11 @@ Built by [StealthyLabs](https://stealthylabs.eu).
 
 ## Features
 
-**Music** (22 commands)
-Play music from SoundCloud, Spotify, and YouTube with full queue management, audio filters, lyrics, persistent player UI with buttons and filter dropdown, auto-resume on restart, AI-generated playlists, autoplay, and track history. Powered by Lavalink + Shoukaku with SoundCloud as primary streaming source.
+**Music** (24 commands)
+Play music from SoundCloud, Spotify, and YouTube with full queue management, audio filters, lyrics, persistent player UI with buttons and filter dropdown, auto-resume on restart, autoplay, and track history. Save favorites, create personal playlists, and enable 24/7 mode. Powered by Lavalink + Shoukaku with SoundCloud as primary streaming source.
 
-**AI** (10 commands + local AI management)
-Chat with Claude (Anthropic), Gemini (Google), or a local model via Ollama (Gemma 4, Llama, Mistral, etc.). Generate images with Nano Banana 2, translate text, analyze images, catch up on conversations, summarize webpages. Bot owner can customize system prompts for both cloud and local AI, manage a knowledge base (RAG) with auto-summarization, and toggle thinking mode. Supports any language for responses.
+**AI** (12 commands + local/cloud AI management)
+Chat with Claude (Anthropic), Gemini (Google), or a local model via Ollama (Gemma 4, Llama, Mistral, etc.). Generate or analyze code with full reasoning (temp 0). Generate images with Nano Banana 2, translate text, analyze images (attach to `/ask`), catch up on conversations, summarize webpages. Bot owner can customize system prompts for cloud (`/cloudai`) and local (`/localai`) AI separately, manage a knowledge base (RAG) with auto-summarization, and toggle thinking mode. Ollama fully disableable via `OLLAMA_ENABLED` env var.
 
 **Moderation** (12 commands)
 Ban, kick, timeout, warn, mute, lockdown, slowmode, clear messages, nuke channels, manage bot admin roles, and toggle roles.
@@ -164,6 +164,7 @@ Edit `.env` and fill in your values:
 | `SPOTIFY_CLIENT_ID` | No | Enables Spotify link resolution |
 | `SPOTIFY_CLIENT_SECRET` | No | Enables Spotify link resolution |
 | `GIPHY_API_KEY` | No | Enables `/gif` command (free at [developers.giphy.com](https://developers.giphy.com/)) |
+| `OLLAMA_ENABLED` | No | Enable/disable local AI entirely (`true`/`false`, default `false`) |
 | `OLLAMA_HOST` | No | Ollama server address (default `http://localhost:11434`) |
 | `OLLAMA_MODEL` | No | Local AI model (default `gemma4:26b`) |
 | `OLLAMA_KEEP_ALIVE` | No | How long model stays in RAM after last request (default `5m`, use `-1` for permanent) |
@@ -228,8 +229,11 @@ YouTube may block audio streaming without cookies. If music playback fails, expo
 | `/lyrics [search]` | Show lyrics with optional AI explain button |
 | `/seek <timestamp>` | Jump to a position (e.g. 1:30) |
 | `/filter <type>` | Apply audio filter (bassboost, nightcore, vaporwave, 8d, slowed_reverb, speed_reverb, treble, karaoke, deepbass, chipmunk) |
-| `/ai-playlist <prompt>` | Generate a playlist with AI (e.g. "chill lo-fi for studying") |
 | `/autoplay` | Toggle autoplay - automatically add similar tracks when queue ends |
+| `/favorites add\|list\|play\|remove\|clear` | Save, browse, and play your favorite tracks |
+| `/playlist create\|save\|load\|show\|list\|delete` | Personal playlists — save queue, load later |
+| `/history` | Show the 20 most recently played tracks |
+| `/247` | Toggle 24/7 mode — bot stays in voice channel |
 
 The music player features a persistent Now Playing embed with interactive buttons (pause/resume, skip, stop, loop, shuffle, autoplay) and a dropdown menu for audio filters. The Now Playing also displays the upcoming queue with source-specific colors (orange for SoundCloud, green for Spotify, red for YouTube). Queue state is saved to SQLite and auto-resumes after bot restart. The bot auto-disconnects after 5 minutes of inactivity. If Lavalink is not running, music commands are gracefully disabled with a clear message. SoundCloud is used as the primary streaming source with YouTube as fallback.
 
@@ -237,7 +241,7 @@ The music player features a persistent Now Playing embed with interactive button
 
 | Command | Description |
 |---|---|
-| `/ask <question> [provider]` | Ask Claude, Gemini, or local AI |
+| `/ask <question> [provider] [image]` | Ask Claude, Gemini, or local AI (optional image for vision) |
 | `/summarize [messages] [provider]` | Summarize recent channel messages |
 | `/nanobanana <prompt> [image]` | Generate an image with Gemini (Nano Banana 2) |
 | `/setmodel cloud <model>` | Choose a cloud AI model (Claude or Gemini) |
@@ -249,6 +253,10 @@ The music player features a persistent Now Playing embed with interactive button
 | `/vision <image> <prompt>` | Analyze an image with AI (Claude or Gemini) |
 | `/catchup` | AI-powered summary of recent channel activity |
 | `/tldr <url>` | Summarize a webpage with AI |
+| `/code <prompt> <model> [file]` | Generate or analyze code (temp 0, full reasoning) — supports file/image upload |
+| `/cloudai prompt [text]` | View or set custom system prompt for cloud AI (owner only) |
+| `/cloudai reset-prompt` | Reset cloud AI prompt to default (owner only) |
+| `/cloudai status` | Show cloud AI configuration (owner only) |
 | `/localai prompt [text]` | View or set custom system prompt for local AI (owner only) |
 | `/localai knowledge-add <topic> <content>` | Add to knowledge base — RAG (owner only) |
 | `/localai knowledge-list` | List knowledge base entries (owner only) |
@@ -386,7 +394,7 @@ src/
 
 Each module is independent and can be enabled/disabled. Modules never import from each other, only from `services/`.
 
-Data is persisted in SQLite (`data/bot.db`) with 10 tables: warnings, guild_config, ai_config, image_config, conversation_history, usage_limits, bot_admin_roles, music_resume, localai_config, and localai_knowledge.
+Data is persisted in SQLite (`data/bot.db`) with 13 tables: warnings, guild_config, ai_config, image_config, conversation_history, usage_limits, bot_admin_roles, music_resume, localai_config, localai_knowledge, user_favorites, user_playlists, and playlist_tracks.
 
 ## AI Models
 

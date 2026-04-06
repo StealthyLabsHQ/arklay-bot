@@ -73,10 +73,14 @@ const CATEGORIES: Record<string, Category> = {
       { name: 'lyrics',      desc: { en: 'Show lyrics for the current track', fr: 'Afficher les paroles' }, usage: '/lyrics [search]' },
       { name: 'seek',        desc: { en: 'Jump to a position in the track', fr: 'Aller a un moment du titre' }, usage: '/seek <timestamp>' },
       { name: 'filter',      desc: { en: 'Apply an audio filter', fr: 'Appliquer un filtre audio' }, usage: '/filter <type>' },
-      { name: 'ai-playlist', desc: { en: 'Generate a playlist with AI', fr: 'G\u00e9n\u00e9rer une playlist avec l\'IA' }, usage: '/ai-playlist <prompt>' },
+
       { name: 'previous',   desc: { en: 'Play the previous track again', fr: 'Rejouer le titre pr\u00e9c\u00e9dent' } },
       { name: 'move',       desc: { en: 'Move a track to a different position', fr: 'D\u00e9placer un titre dans la file' }, usage: '/move <from> <to>' },
       { name: 'autoplay',   desc: { en: 'Toggle autoplay when queue ends', fr: 'Activer/d\u00e9sactiver la lecture auto' } },
+      { name: 'favorites',  desc: { en: 'Save, list, play your favorite tracks', fr: 'G\u00e9rer vos titres favoris' }, usage: '/favorites add|list|play|remove|clear' },
+      { name: 'playlist',   desc: { en: 'Create and manage personal playlists', fr: 'Cr\u00e9er et g\u00e9rer des playlists' }, usage: '/playlist create|save|load|show|list|delete' },
+      { name: 'history',    desc: { en: 'Show recently played tracks', fr: 'Titres r\u00e9cemment jou\u00e9s' } },
+      { name: '247',        desc: { en: 'Toggle 24/7 mode (stay connected)', fr: 'Mode 24/7 (rester connect\u00e9)' } },
     ],
   },
   ai: {
@@ -93,6 +97,7 @@ const CATEGORIES: Record<string, Category> = {
       { name: 'vision',      desc: { en: 'Analyze an image with AI', fr: 'Analyser une image avec l\'IA' }, usage: '/vision <image> [prompt]', providers: 'all' },
       { name: 'catchup',     desc: { en: 'AI-powered catch-up of recent activity', fr: 'R\u00e9sum\u00e9 IA de l\'activit\u00e9 r\u00e9cente' }, providers: 'all' },
       { name: 'tldr',        desc: { en: 'Summarize a webpage with AI', fr: 'R\u00e9sumer une page web avec l\'IA' }, usage: '/tldr <url>', providers: 'all' },
+      { name: 'code',        desc: { en: 'Generate or explain code (temp 0, full reasoning)', fr: 'G\u00e9n\u00e9rer ou expliquer du code (raisonnement complet)' }, usage: '/code <prompt> <model>', providers: 'Claude + Gemini Pro' },
     ],
   },
   moderation: {

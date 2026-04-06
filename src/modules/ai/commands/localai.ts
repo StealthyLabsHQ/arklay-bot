@@ -1,17 +1,19 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import type { ChatInputCommandInteraction } from 'discord.js';
+import type { Attachment, ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
-import { config } from '../../../services/config';
+import { isBotOwner } from '../../../services/config';
+
+async function readTextAttachment(file: Attachment, maxBytes = 25_000_000): Promise<string | null> {
+  if (!file.name?.match(/\.(txt|md|text)$/i)) return null;
+  if (file.size > maxBytes) return null;
+  const res = await fetch(file.url);
+  return res.text();
+}
 import {
   getSystemPrompt, setSystemPrompt, resetSystemPrompt,
-  getCloudPrompt, setCloudPrompt, resetCloudPrompt,
   addKnowledge, listKnowledge, removeKnowledge, clearKnowledge,
   isThinkingEnabled, setThinking,
 } from '../../../services/localaiConfig';
-
-function isBotOwner(userId: string): boolean {
-  return !!config.BOT_OWNER_ID && userId === config.BOT_OWNER_ID;
-}
 
 const localai: CommandDef = {
   data: new SlashCommandBuilder()
@@ -75,24 +77,8 @@ const localai: CommandDef = {
     )
     .addSubcommand((sub) =>
       sub
-        .setName('cloud-prompt')
-        .setDescription('Set a custom system prompt for cloud AI (Claude + Gemini)')
-        .addStringOption((opt) =>
-          opt.setName('text').setDescription('New cloud prompt (or attach a .txt file)').setRequired(false)
-        )
-        .addAttachmentOption((opt) =>
-          opt.setName('file').setDescription('Upload a .txt file with the prompt').setRequired(false)
-        )
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('reset-cloud-prompt')
-        .setDescription('Reset cloud AI prompt to default')
-    )
-    .addSubcommand((sub) =>
-      sub
         .setName('status')
-        .setDescription('Show AI configuration status')
+        .setDescription('Show local AI configuration status')
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -109,12 +95,12 @@ const localai: CommandDef = {
         const promptFile = interaction.options.getAttachment('file');
 
         if (promptFile) {
-          if (!promptFile.name?.match(/\.(txt|md|text)$/i)) {
+          const content = await readTextAttachment(promptFile);
+          if (content === null) {
             await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
             return;
           }
-          const res = await fetch(promptFile.url);
-          text = await res.text();
+          text = content;
         }
 
         if (!text) {
@@ -154,18 +140,13 @@ const localai: CommandDef = {
         let content = interaction.options.getString('content') ?? '';
         const file = interaction.options.getAttachment('file');
 
-        // Read content from attached file if provided
         if (file) {
-          if (!file.name?.match(/\.(txt|md|text)$/i)) {
-            await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
+          const fileContent = await readTextAttachment(file);
+          if (fileContent === null) {
+            await interaction.reply({ content: 'Only .txt and .md files supported (max 25MB).', ephemeral: true });
             return;
           }
-          if (file.size > 25_000_000) {
-            await interaction.reply({ content: 'File too large (max 25MB).', ephemeral: true });
-            return;
-          }
-          const res = await fetch(file.url);
-          content = await res.text();
+          content = fileContent;
         }
 
         if (!content.trim()) {
@@ -173,7 +154,6 @@ const localai: CommandDef = {
           return;
         }
 
-        // Auto-summarize long content (>2000 chars) to keep knowledge base efficient
         const originalLength = content.length;
         let summarized = false;
         if (content.length > 2000) {
@@ -188,7 +168,6 @@ const localai: CommandDef = {
             content = summary.text;
             summarized = true;
           } catch {
-            // If summarization fails, truncate manually
             content = content.slice(0, 2000) + '\n[...truncated]';
             summarized = true;
           }
@@ -264,52 +243,8 @@ const localai: CommandDef = {
         return;
       }
 
-      case 'cloud-prompt': {
-        let cpText = interaction.options.getString('text') ?? '';
-        const cpFile = interaction.options.getAttachment('file');
-        if (cpFile) {
-          if (!cpFile.name?.match(/\.(txt|md|text)$/i)) {
-            await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
-            return;
-          }
-          const res = await fetch(cpFile.url);
-          cpText = await res.text();
-        }
-        if (!cpText) {
-          const current = getCloudPrompt();
-          const embed = new EmbedBuilder()
-            .setColor(0x4285f4)
-            .setTitle('Cloud AI — System Prompt')
-            .setDescription(current
-              ? `\`\`\`\n${current.slice(0, 4000)}\n\`\`\``
-              : '*Using default system prompt.*')
-            .setFooter({ text: 'Applies to Claude + Gemini' });
-          await interaction.reply({ embeds: [embed], ephemeral: true });
-          return;
-        }
-        setCloudPrompt(cpText);
-        const embed = new EmbedBuilder()
-          .setColor(0x4285f4)
-          .setTitle('Cloud AI — Prompt Updated')
-          .setDescription(`\`\`\`\n${cpText.slice(0, 4000)}\n\`\`\``)
-          .addFields({ name: 'Size', value: `${cpText.length} chars`, inline: true })
-          .setFooter({ text: 'Active for all Claude + Gemini responses' });
-        await interaction.reply({ embeds: [embed], ephemeral: true });
-        return;
-      }
-
-      case 'reset-cloud-prompt': {
-        resetCloudPrompt();
-        await interaction.reply({
-          embeds: [new EmbedBuilder().setColor(0x4285f4).setTitle('Cloud AI — Prompt Reset').setDescription('Cloud system prompt reset to default.')],
-          ephemeral: true,
-        });
-        return;
-      }
-
       case 'status': {
         const prompt = getSystemPrompt();
-        const cloudPrompt = getCloudPrompt();
         const entries = listKnowledge();
         const thinking = isThinkingEnabled();
         const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434';
@@ -317,16 +252,15 @@ const localai: CommandDef = {
 
         const embed = new EmbedBuilder()
           .setColor(0x00b894)
-          .setTitle('AI — Status')
+          .setTitle('Local AI — Status')
           .addFields(
             { name: 'Ollama Host', value: `\`${ollamaHost}\``, inline: true },
             { name: 'Default Model', value: `\`${ollamaModel}\``, inline: true },
             { name: 'Local Prompt', value: prompt ? `Custom (${prompt.length} chars)` : 'Default', inline: true },
-            { name: 'Cloud Prompt', value: cloudPrompt ? `Custom (${cloudPrompt.length} chars)` : 'Default', inline: true },
             { name: 'Knowledge Base', value: `${entries.length} entries`, inline: true },
             { name: 'Thinking Mode', value: thinking ? 'Enabled' : 'Disabled', inline: true },
           )
-          .setFooter({ text: '/localai prompt, cloud-prompt, knowledge-add, thinking' });
+          .setFooter({ text: '/localai prompt, knowledge-add, thinking' });
         await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
       }

@@ -247,8 +247,11 @@ interface SpotifyAlbumPage   { next?: string; items?: SpotifyTrackRaw[] }
 
 async function resolveSpotifyPlaylistTracks(id: string): Promise<SpotifyTrackRaw[]> {
   const tracks: SpotifyTrackRaw[] = [];
+  const MAX_PAGES = 100;
+  let pages = 0;
   let url: string | null = `/playlists/${id}/tracks?limit=100&fields=next,items(track(name,artists,duration_ms,album(name,images)))`;
-  while (url) {
+  while (url && pages < MAX_PAGES) {
+    pages++;
     const page: SpotifyPlaylistPage = await spotifyGet<SpotifyPlaylistPage>(url);
     for (const item of page.items ?? []) {
       if (item.track?.name) tracks.push(item.track);
@@ -260,8 +263,11 @@ async function resolveSpotifyPlaylistTracks(id: string): Promise<SpotifyTrackRaw
 
 async function resolveSpotifyAlbumTracks(id: string, images: Array<{ url: string }>): Promise<SpotifyTrackRaw[]> {
   const tracks: SpotifyTrackRaw[] = [];
+  const MAX_PAGES = 100;
+  let pages = 0;
   let url: string | null = `/albums/${id}/tracks?limit=50`;
-  while (url) {
+  while (url && pages < MAX_PAGES) {
+    pages++;
     const page: SpotifyAlbumPage = await spotifyGet<SpotifyAlbumPage>(url);
     for (const t of page.items ?? []) {
       tracks.push({ ...t, album: { images } });

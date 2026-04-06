@@ -1,6 +1,6 @@
 // Daily request limits per user per model - SQLite persistent, resets at midnight UTC
 import db from './db';
-import { config } from './config';
+import { config, isBotOwner } from './config';
 
 const DAILY_LIMITS: Record<string, number> = {
   // Claude
@@ -31,10 +31,6 @@ const stmtUpsert = db.prepare(`
 `);
 
 const OWNER_MULTIPLIER = config.BOT_OWNER_MULTIPLIER;
-
-function isBotOwner(userId: string): boolean {
-  return !!config.BOT_OWNER_ID && userId === config.BOT_OWNER_ID;
-}
 
 /**
  * Returns the hard daily limit for a model, or null if no limit applies.

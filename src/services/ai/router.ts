@@ -1,5 +1,5 @@
-import { askClaude, isAvailable as claudeAvailable } from './anthropic';
-import { askGemini, isAvailable as geminiAvailable } from './google';
+import { askClaude, askClaudeWithImage, isAvailable as claudeAvailable } from './anthropic';
+import { askGemini, askGeminiWithImage, isAvailable as geminiAvailable } from './google';
 import { askOllama, isAvailable as ollamaAvailable, getModel as getOllamaModel } from './ollama';
 import { getHistory, saveMessage } from '../database';
 import { getAIConfig } from '../aiConfig';
@@ -80,6 +80,56 @@ export async function ask(
     model: actualModel,
     tokenUsage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
   };
+}
+
+export async function askWithImage(
+  guildId: string,
+  userId: string,
+  prompt: string,
+  imageBase64: string,
+  imageMime: string,
+  provider: Provider = 'auto',
+): Promise<AskResult> {
+  const resolved = resolveProvider(provider, userId);
+  const cfg = getAIConfig(userId);
+  const actualModel = cfg.provider === resolved ? cfg.model
+    : resolved === 'claude' ? 'claude-sonnet-4-6'
+    : resolved === 'ollama' ? getOllamaModel()
+    : 'gemini-3.1-flash-lite-preview';
+
+  if (isLimitReached(userId, actualModel)) {
+    const { getDailyLimit } = await import('../usageLimit');
+    throw new DailyLimitError(actualModel, getDailyLimit(actualModel) ?? 0);
+  }
+
+  // Ollama doesn't support images — fallback to Claude or Gemini
+  const imageProvider = resolved === 'ollama'
+    ? (claudeAvailable() ? 'claude' : geminiAvailable() ? 'gemini' : resolved)
+    : resolved;
+
+  if (imageProvider === 'claude') {
+    const result = await askClaudeWithImage(prompt, imageBase64, imageMime, userId);
+    incrementUsage(userId, actualModel);
+    saveMessage(guildId, userId, 'user', `[image] ${prompt}`);
+    saveMessage(guildId, userId, 'assistant', result.text);
+    return { text: result.text, provider: 'claude', model: actualModel, tokenUsage: result.usage };
+  }
+
+  if (imageProvider === 'gemini') {
+    const result = await askGeminiWithImage(prompt, imageBase64, imageMime, userId);
+    incrementUsage(userId, actualModel);
+    saveMessage(guildId, userId, 'user', `[image] ${prompt}`);
+    saveMessage(guildId, userId, 'assistant', result.text);
+    return {
+      text: result.text,
+      provider: 'gemini',
+      model: actualModel,
+      tokenUsage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+    };
+  }
+
+  // Fallback: text only
+  return ask(guildId, userId, prompt, provider);
 }
 
 function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemini' | 'ollama' {
