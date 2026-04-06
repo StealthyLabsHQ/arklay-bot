@@ -322,7 +322,8 @@ function buildOverview(isAdmin: boolean, client: Client, lang: string): EmbedBui
 }
 
 function buildCategoryEmbed(categoryId: string, isAdmin: boolean, client: Client, lang: string): EmbedBuilder {
-  const cat = CATEGORIES[categoryId]!;
+  const cat = CATEGORIES[categoryId];
+  if (!cat) return buildOverview(isAdmin, client, lang);
   const cmds = cat.commands.filter((c) => !c.admin || isAdmin);
   const botAvatar = client.user?.displayAvatarURL({ size: 256 }) ?? null;
 
