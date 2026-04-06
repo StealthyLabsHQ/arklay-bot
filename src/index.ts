@@ -13,6 +13,9 @@ import { initLavalink } from './services/lavalink';
 
 // Prevent unhandled rejections from crashing the bot
 process.on('unhandledRejection', (err) => {
+  // Suppress Discord "Unknown interaction" (expired interactions) — normal when users click old buttons
+  const code = (err as Record<string, unknown>)?.['code'];
+  if (code === 10062 || code === 'InteractionAlreadyReplied') return;
   logger.error({ err }, 'Unhandled rejection (bot will continue)');
 });
 

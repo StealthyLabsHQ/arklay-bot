@@ -4,6 +4,7 @@ import type { GuildMember, Message, TextChannel, VoiceBasedChannel } from 'disco
 import { getShoukaku } from '../../../services/lavalink';
 import { logger } from '../../../services/logger';
 import { saveQueueState, deleteQueueState } from '../../../services/musicResume';
+import { recordPlay } from '../commands/stats';
 
 export interface Track {
   title: string;
@@ -225,6 +226,10 @@ export class GuildQueue {
     this.isPlaying = true;
     this._pauseStart = null;
     this.cancelDestroyTimer();
+
+    // Record play for /stats
+    const requester = track.requestedBy.replace(/[<@!>]/g, '');
+    if (requester) recordPlay(this.guildId, requester, track.title, track.artist);
 
     try {
       let encoded = track.encoded;
@@ -596,7 +601,7 @@ export class GuildQueue {
           default:
             await interaction.deferUpdate();
         }
-      } catch (err) { logger.warn({ err }, 'Button interaction error'); await interaction.deferUpdate().catch(() => undefined); }
+      } catch { /* expired interaction or already replied — safe to ignore */ }
     });
 
     collector.on('end', () => { this.disableNowPlaying(); });

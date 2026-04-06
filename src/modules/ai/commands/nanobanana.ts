@@ -1,8 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
-import { generateImage, STYLE_PRESETS } from '../providers/google';
-import { NetworkError, SafetyError, RateLimitError } from '../providers/anthropic';
+import { NetworkError, SafetyError, RateLimitError } from '../../../services/ai/anthropic';
 import { ask } from '../router';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { isLimitReached, incrementUsage, remaining } from '../../../services/usageLimit';
@@ -214,6 +213,7 @@ const nanobanana: CommandDef = {
       }
 
       try {
+        const { generateImage } = await import('../providers/google');
         const imageBuffer = await generateImage(finalPrompt, {
           aspectRatio: ratio,
           resolution,

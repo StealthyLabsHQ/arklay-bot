@@ -123,6 +123,22 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_playlist_tracks ON playlist_tracks(playlist_id);
 
+  CREATE TABLE IF NOT EXISTS user_persona (
+    user_id  TEXT PRIMARY KEY,
+    persona  TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS music_plays (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id  TEXT NOT NULL,
+    user_id   TEXT NOT NULL,
+    title     TEXT NOT NULL,
+    artist    TEXT,
+    played_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_music_plays_guild ON music_plays(guild_id);
+
   CREATE TABLE IF NOT EXISTS music_resume (
     guild_id          TEXT PRIMARY KEY,
     voice_channel_id  TEXT NOT NULL,

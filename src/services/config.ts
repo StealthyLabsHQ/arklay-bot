@@ -14,6 +14,8 @@ const envSchema = z.object({
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
   // Giphy GIF API
   GIPHY_API_KEY: z.string().optional(),
+  // OpenAI
+  OPENAI_API_KEY: z.string().optional(),
   // Ollama (local AI)
   OLLAMA_ENABLED: z.coerce.boolean().default(false),
   OLLAMA_HOST: z.string().optional(),

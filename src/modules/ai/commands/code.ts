@@ -3,8 +3,8 @@ import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { isAvailable as claudeAvailable, isVertexMode } from '../providers/anthropic';
-import { isAvailable as geminiAvailable } from '../providers/google';
+import { claudeAvailable, geminiAvailable, openaiAvailable } from '../../../services/ai/availability';
+import OpenAIClient from 'openai';
 import { withThinkingTimer } from '../../../services/thinkingTimer';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { isLimitReached, incrementUsage, remaining } from '../../../services/usageLimit';
@@ -24,6 +24,9 @@ const CODE_SYSTEM_PROMPT =
   'Be concise but thorough. Focus on best practices and clean code.';
 
 const MODEL_CHOICES = [
+  { name: 'GPT-5.3 Codex (code-optimized)', value: 'gpt-5.3-codex' },
+  { name: 'GPT-5.4 (powerful)', value: 'gpt-5.4' },
+  { name: 'GPT-5.4 Long Context (large files)', value: 'gpt-5.4-long-context' },
   { name: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6' },
   { name: 'Claude Opus 4.6 (most powerful)', value: 'claude-opus-4-6' },
   { name: 'Gemini 3.1 Pro Thinking (deep reasoning)', value: 'gemini-3.1-pro-preview' },
@@ -120,9 +123,44 @@ const code: CommandDef = {
       let text: string;
       let inputTokens = 0;
       let outputTokens = 0;
-      let provider: 'claude' | 'gemini';
+      let provider: 'claude' | 'gemini' | 'openai';
 
-      if (modelId.startsWith('claude')) {
+      if (modelId.startsWith('gpt-') || modelId.startsWith('o4')) {
+        if (!openaiAvailable()) {
+          await interaction.editReply('OpenAI is not available (missing API key).');
+          return;
+        }
+        provider = 'openai';
+
+        const oai = new OpenAIClient({ apiKey: process.env.OPENAI_API_KEY });
+        const messages: OpenAIClient.ChatCompletionMessageParam[] = [
+          { role: 'system', content: systemPrompt },
+        ];
+        if (imageBase64) {
+          messages.push({
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:${imageMime};base64,${imageBase64}` } },
+              { type: 'text', text: finalPrompt },
+            ],
+          });
+        } else {
+          messages.push({ role: 'user', content: finalPrompt });
+        }
+
+        const maxTokens = modelId === 'gpt-5.4-long-context' ? 16384 : 4096;
+        const response = await oai.chat.completions.create({
+          model: modelId,
+          messages,
+          max_completion_tokens: maxTokens,
+          temperature: 0,
+        });
+
+        text = response.choices[0]?.message?.content ?? '';
+        if (!text) throw new SafetyError('Empty response from OpenAI');
+        inputTokens = response.usage?.prompt_tokens ?? 0;
+        outputTokens = response.usage?.completion_tokens ?? 0;
+      } else if (modelId.startsWith('claude')) {
         if (!claudeAvailable()) {
           await interaction.editReply('Claude is not available (missing API key).');
           return;
@@ -130,7 +168,7 @@ const code: CommandDef = {
         provider = 'claude';
 
         let client: Anthropic | AnthropicVertex;
-        if (isVertexMode()) {
+        if (!!process.env.GOOGLE_CLOUD_PROJECT) {
           client = new AnthropicVertex({
             projectId: process.env.GOOGLE_CLOUD_PROJECT!,
             region: process.env.GOOGLE_CLOUD_REGION ?? 'us-east5',
@@ -197,7 +235,7 @@ const code: CommandDef = {
       const { name: modelName, source } = getModelDisplayInfo(
         provider,
         modelId,
-        provider === 'claude' && isVertexMode()
+        provider === 'claude' && !!process.env.GOOGLE_CLOUD_PROJECT
       );
       const left = remaining(interaction.user.id, modelId);
       const quota = left !== null ? ` \u2022 ${left} req left` : '';

@@ -6,7 +6,7 @@ import { withThinkingTimer } from '../../../services/thinkingTimer';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { remaining } from '../../../services/usageLimit';
 import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
-import { isVertexMode } from '../providers/anthropic';
+const isVertexMode = () => !!process.env.GOOGLE_CLOUD_PROJECT;
 import { logger } from '../../../services/logger';
 
 const BASE_COOLDOWN_MS = 8_000;
@@ -37,6 +37,7 @@ const askCommand: CommandDef = {
           { name: 'Auto (default)', value: 'auto' },
           { name: 'Claude (Anthropic)', value: 'claude' },
           { name: 'Gemini (Google)', value: 'gemini' },
+          { name: 'OpenAI (ChatGPT)', value: 'openai' },
           { name: 'Ollama (Local)', value: 'ollama' }
         )
     )
@@ -59,11 +60,11 @@ const askCommand: CommandDef = {
       return;
     }
 
-    await interaction.deferReply();
+    try { await interaction.deferReply(); } catch { return; }
 
     const question = interaction.options.getString('question', true);
     const rawProvider = interaction.options.getString('provider') ?? 'auto';
-    const provider = (['auto', 'claude', 'gemini', 'ollama'].includes(rawProvider) ? rawProvider : 'auto') as Provider;
+    const provider = (['auto', 'claude', 'gemini', 'openai', 'ollama'].includes(rawProvider) ? rawProvider : 'auto') as Provider;
     const lang     = interaction.options.getString('lang');
     const image    = interaction.options.getAttachment('image');
 

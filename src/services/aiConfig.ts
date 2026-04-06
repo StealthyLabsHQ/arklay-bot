@@ -1,7 +1,7 @@
 // Per-user AI model configuration - SQLite persistent
 import db from './db';
 
-export type AIProvider = 'claude' | 'gemini' | 'ollama';
+export type AIProvider = 'claude' | 'gemini' | 'openai' | 'ollama';
 
 export interface AIModelConfig {
   provider: AIProvider;
@@ -19,6 +19,14 @@ export const MODELS: Record<AIProvider, { id: string; label: string; displayName
     { id: 'gemini-3-flash-preview',        label: 'Gemini 3 Flash Preview (recommended)', displayName: 'Gemini 3 Flash Preview' },
     { id: 'gemini-3.1-pro-preview',        label: 'Gemini 3.1 Pro Preview (most powerful)', displayName: 'Gemini 3.1 Pro Preview' },
     { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite (cheapest)',     displayName: 'Gemini 3.1 Flash Lite' },
+  ],
+  openai: [
+    { id: 'gpt-5.4-nano',         label: 'GPT-5.4 Nano (default, cheapest)', displayName: 'GPT-5.4 Nano' },
+    { id: 'gpt-5.4-mini',         label: 'GPT-5.4 Mini (complex queries)',   displayName: 'GPT-5.4 Mini' },
+    { id: 'o4-mini',              label: 'o4 Mini (reasoning)',               displayName: 'o4 Mini' },
+    { id: 'gpt-5.3-codex',        label: 'GPT-5.3 Codex (code-optimized)',   displayName: 'GPT-5.3 Codex' },
+    { id: 'gpt-5.4',              label: 'GPT-5.4 (powerful)',               displayName: 'GPT-5.4' },
+    { id: 'gpt-5.4-long-context', label: 'GPT-5.4 Long Context (large files)', displayName: 'GPT-5.4 Long Context' },
   ],
   ollama: (() => {
     const m = process.env.OLLAMA_MODEL || 'gemma4:26b';
@@ -70,6 +78,8 @@ export function getModelDisplayInfo(
   let source: string;
   if (provider === 'ollama') {
     source = 'Google DeepMind (Local)';
+  } else if (provider === 'openai') {
+    source = 'OpenAI API';
   } else if (provider === 'gemini') {
     source = 'Google Gemini API';
   } else if (vertexMode) {

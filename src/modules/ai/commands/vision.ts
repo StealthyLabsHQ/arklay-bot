@@ -1,8 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
-import { isAvailable as claudeAvailable } from '../providers/anthropic';
-import { isAvailable as geminiAvailable } from '../providers/google';
+import { claudeAvailable, geminiAvailable } from '../../../services/ai/availability';
 import { getAIConfig } from '../../../services/aiConfig';
 import { getModelDisplayInfo } from '../../../services/aiConfig';
 import { remaining } from '../../../services/usageLimit';

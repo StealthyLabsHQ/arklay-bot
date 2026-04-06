@@ -57,13 +57,20 @@ export interface ClaudeResult {
   usage: TokenUsage;
 }
 
+const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-6';
+
+function resolveClaudeModel(userId?: string): string {
+  const cfg = getAIConfig(userId);
+  return cfg.provider === 'claude' ? cfg.model : DEFAULT_CLAUDE_MODEL;
+}
+
 export async function askClaudeWithImage(
   prompt: string,
   imageBase64: string,
   imageMime: string,
   userId?: string,
 ): Promise<ClaudeResult> {
-  const model = getAIConfig(userId).model;
+  const model = resolveClaudeModel(userId);
 
   try {
     const response = await getClient().messages.create({
@@ -119,7 +126,7 @@ export async function askClaude(
   newPrompt: string,
   userId?: string
 ): Promise<ClaudeResult> {
-  const model = getAIConfig(userId).model;
+  const model = resolveClaudeModel(userId);
 
   const messages: Anthropic.MessageParam[] = [
     ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),

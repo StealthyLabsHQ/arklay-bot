@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask } from '../router';
-import { isVertexMode } from '../providers/anthropic';
+const isVertexMode = () => !!process.env.GOOGLE_CLOUD_PROJECT;
 import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
 import { remaining } from '../../../services/usageLimit';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';

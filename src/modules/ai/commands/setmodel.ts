@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { setAIConfig, getAIConfig, resetAIConfig, MODELS, type AIProvider } from '../../../services/aiConfig';
-import { isAvailable as ollamaAvailable } from '../../../services/ai/ollama';
+import { ollamaAvailable, openaiAvailable } from '../../../services/ai/availability';
 
 const CLOUD_CHOICES = [
   { name: 'Claude Sonnet 4.6', value: 'claude|claude-sonnet-4-6' },
@@ -11,6 +11,11 @@ const CLOUD_CHOICES = [
   { name: 'Gemini 3 Flash Preview', value: 'gemini|gemini-3-flash-preview' },
   { name: 'Gemini 3.1 Pro Preview (most powerful)', value: 'gemini|gemini-3.1-pro-preview' },
   { name: 'Gemini 3.1 Flash Lite (cheapest)', value: 'gemini|gemini-3.1-flash-lite-preview' },
+  ...(openaiAvailable() ? [
+    { name: 'GPT-5.4 Nano (default, cheapest)', value: 'openai|gpt-5.4-nano' },
+    { name: 'GPT-5.4 Mini (complex queries)', value: 'openai|gpt-5.4-mini' },
+    { name: 'o4 Mini (reasoning)', value: 'openai|o4-mini' },
+  ] : []),
 ];
 
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:26b';
@@ -21,12 +26,14 @@ if (ollamaEnabled) ALL_CHOICES.push({ name: `${OLLAMA_MODEL} (local)`, value: `o
 
 function providerColor(p: string): number {
   if (p === 'claude') return 0xd4a843;
+  if (p === 'openai') return 0x10a37f;
   if (p === 'ollama') return 0x00b894;
   return 0x4285f4;
 }
 
 function providerLabel(p: string): string {
   if (p === 'claude') return 'Anthropic Claude';
+  if (p === 'openai') return 'OpenAI ChatGPT';
   if (p === 'ollama') return 'Local AI';
   return 'Google Gemini';
 }

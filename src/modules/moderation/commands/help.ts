@@ -53,7 +53,7 @@ function t(map: Record<string, string>, lang: string): string {
 const CATEGORIES: Record<string, Category> = {
   music: {
     label:       { en: 'Music', fr: 'Musique' },
-    description: { en: 'Play music from YouTube, Spotify & SoundCloud', fr: 'Jouer de la musique depuis YouTube, Spotify & SoundCloud' },
+    description: { en: 'Play music, playlists, favorites, lyrics & filters', fr: 'Musique, playlists, favoris, paroles & filtres' },
     emoji: '\uD83C\uDFB5',
     commands: [
       { name: 'play',        desc: { en: 'Add a track or playlist to the queue', fr: 'Ajouter un titre ou playlist' }, usage: '/play <query>' },
@@ -81,23 +81,30 @@ const CATEGORIES: Record<string, Category> = {
       { name: 'playlist',   desc: { en: 'Create and manage personal playlists', fr: 'Cr\u00e9er et g\u00e9rer des playlists' }, usage: '/playlist create|save|load|show|list|delete' },
       { name: 'history',    desc: { en: 'Show recently played tracks', fr: 'Titres r\u00e9cemment jou\u00e9s' } },
       { name: '247',        desc: { en: 'Toggle 24/7 mode (stay connected)', fr: 'Mode 24/7 (rester connect\u00e9)' } },
+      { name: 'lyrics-translate', desc: { en: 'Translate current track lyrics', fr: 'Traduire les paroles du titre en cours' }, usage: '/lyrics-translate <language>' },
+      { name: 'stats',      desc: { en: 'Server music statistics', fr: 'Statistiques musicales du serveur' } },
+      { name: 'recommend',  desc: { en: 'AI recommends tracks based on your queue', fr: 'IA recommande des titres selon votre file' } },
     ],
   },
   ai: {
     label:       { en: 'AI', fr: 'Intelligence Artificielle' },
-    description: { en: 'Chat with Claude & Gemini, generate images', fr: 'Discuter avec Claude & Gemini, g\u00e9n\u00e9rer des images' },
+    description: { en: 'Claude, Gemini, ChatGPT, Ollama — chat, code, images', fr: 'Claude, Gemini, ChatGPT, Ollama — chat, code, images' },
     emoji: '\uD83E\uDD16',
     commands: [
-      { name: 'ask',         desc: { en: 'Ask a question to Claude or Gemini', fr: 'Poser une question a Claude ou Gemini' }, usage: '/ask <question> [provider]', providers: 'all' },
+      { name: 'ask',         desc: { en: 'Ask a question to any AI (supports image)', fr: 'Poser une question (supporte les images)' }, usage: '/ask <question> [provider] [image]', providers: 'all' },
       { name: 'summarize',   desc: { en: 'Summarize recent channel messages', fr: 'R\u00e9sumer les messages r\u00e9cents' }, usage: '/summarize [messages] [provider]', providers: 'all' },
       { name: 'nanobanana',  desc: { en: 'Generate an image or configure settings', fr: 'G\u00e9n\u00e9rer une image ou configurer' }, usage: '/nanobanana <prompt> [image]', providers: 'Gemini (Nano Banana 2)' },
-      { name: 'setmodel',    desc: { en: 'Choose your personal AI model', fr: 'Choisir votre mod\u00e8le IA' }, usage: '/setmodel [model]', providers: 'all' },
+      { name: 'setmodel',    desc: { en: 'Choose your AI model (Claude, Gemini, ChatGPT, Ollama)', fr: 'Choisir votre mod\u00e8le IA' }, usage: '/setmodel cloud|local|show|reset', providers: 'all' },
       { name: 'translate',   desc: { en: 'Translate text using AI', fr: 'Traduire du texte avec l\'IA' }, usage: '/translate <language> <text>', providers: 'all' },
       { name: 'roast',       desc: { en: 'Get a lighthearted AI roast', fr: 'Se faire chambrer par l\'IA' }, usage: '/roast <user>', providers: 'all' },
       { name: 'vision',      desc: { en: 'Analyze an image with AI', fr: 'Analyser une image avec l\'IA' }, usage: '/vision <image> [prompt]', providers: 'all' },
       { name: 'catchup',     desc: { en: 'AI-powered catch-up of recent activity', fr: 'R\u00e9sum\u00e9 IA de l\'activit\u00e9 r\u00e9cente' }, providers: 'all' },
       { name: 'tldr',        desc: { en: 'Summarize a webpage with AI', fr: 'R\u00e9sumer une page web avec l\'IA' }, usage: '/tldr <url>', providers: 'all' },
-      { name: 'code',        desc: { en: 'Generate or explain code (temp 0, full reasoning)', fr: 'G\u00e9n\u00e9rer ou expliquer du code (raisonnement complet)' }, usage: '/code <prompt> <model>', providers: 'Claude + Gemini Pro' },
+      { name: 'code',        desc: { en: 'Generate or analyze code (temp 0, file/image upload)', fr: 'G\u00e9n\u00e9rer ou analyser du code (fichier/image)' }, usage: '/code <prompt> <model> [file]', providers: 'Codex, GPT-5.4, Claude, Gemini' },
+      { name: 'persona',    desc: { en: 'Set AI personality (pirate, yoda, custom...)', fr: 'Choisir une personnalit\u00e9 IA' }, usage: '/persona set|custom|show|reset', providers: 'all' },
+      { name: 'explain',    desc: { en: 'Explain a topic at your level', fr: 'Expliquer un sujet \u00e0 votre niveau' }, usage: '/explain <topic> [level]', providers: 'all' },
+      { name: 'debate',     desc: { en: 'Watch two AIs debate a topic', fr: 'Voir deux IA d\u00e9battre un sujet' }, usage: '/debate <topic>', providers: '2+ providers required' },
+      { name: 'llm',        desc: { en: 'Show your current AI model & providers', fr: 'Voir votre mod\u00e8le IA & providers' }, providers: 'all' },
     ],
   },
   moderation: {
@@ -121,7 +128,7 @@ const CATEGORIES: Record<string, Category> = {
   },
   utility: {
     label:       { en: 'Utility', fr: 'Utilitaires' },
-    description: { en: 'Server info, tools & emoji management', fr: 'Infos serveur, outils & gestion d\'emojis' },
+    description: { en: 'Info, tools, QR codes, screenshots & more', fr: 'Infos, outils, QR codes, captures & plus' },
     emoji: '\uD83D\uDEE0\uFE0F',
     commands: [
       { name: 'help',        desc: { en: 'Show this help menu', fr: 'Afficher ce menu d\'aide' }, usage: '/help [command]' },
@@ -148,11 +155,13 @@ const CATEGORIES: Record<string, Category> = {
       { name: 'editsnipe',  desc: { en: 'Show the last edited message', fr: 'Voir le dernier message \u00e9dit\u00e9' } },
       { name: 'color',      desc: { en: 'Preview a color from hex code', fr: 'Pr\u00e9visualiser une couleur hex' }, usage: '/color <hex>' },
       { name: 'timestamp',  desc: { en: 'Convert a date to Discord timestamps', fr: 'Convertir une date en timestamps Discord' }, usage: '/timestamp <date>' },
+      { name: 'screenshot', desc: { en: 'Take a screenshot of a website', fr: 'Capturer un site web' }, usage: '/screenshot <url>' },
+      { name: 'qrcode',     desc: { en: 'Generate a QR code', fr: 'G\u00e9n\u00e9rer un QR code' }, usage: '/qrcode <text>' },
     ],
   },
   fun: {
     label:       { en: 'Fun', fr: 'Divertissement' },
-    description: { en: 'Games, memes & entertainment', fr: 'Jeux, m\u00e8mes & divertissement' },
+    description: { en: 'Games, memes, quotes & entertainment', fr: 'Jeux, m\u00e8mes, citations & divertissement' },
     emoji: '\uD83C\uDFB2',
     commands: [
       { name: '8ball',       desc: { en: 'Ask the magic 8-ball', fr: 'Demander a la boule magique' }, usage: '/8ball <question>' },
@@ -160,11 +169,13 @@ const CATEGORIES: Record<string, Category> = {
       { name: 'coinflip',    desc: { en: 'Flip a coin', fr: 'Lancer une pi\u00e8ce' } },
       { name: 'dice',        desc: { en: 'Roll dice', fr: 'Lancer des d\u00e9s' }, usage: '/dice [count] [sides]' },
       { name: 'trivia',      desc: { en: 'Answer a trivia question', fr: 'R\u00e9pondre a une question de culture g\u00e9n\u00e9rale' }, usage: '/trivia [category]' },
-      { name: 'meme',        desc: { en: 'Get a random meme', fr: 'Obtenir un m\u00e8me al\u00e9atoire' } },
+      { name: 'meme',        desc: { en: 'Get a random meme from Reddit', fr: 'Obtenir un m\u00e8me de Reddit' }, usage: '/meme [search]' },
       { name: 'guesssong',   desc: { en: 'Guess the song from a hint', fr: 'Deviner le titre d\'une chanson' } },
       { name: 'rps',         desc: { en: 'Rock paper scissors vs the bot', fr: 'Pierre feuille ciseaux vs le bot' }, usage: '/rps <choice>' },
       { name: 'rate',        desc: { en: 'Rate something 0-10', fr: 'Noter quelque chose de 0 \u00e0 10' }, usage: '/rate <thing>' },
       { name: 'how',         desc: { en: 'How cool/smart/sus is something?', fr: '\u00c0 quel point quelque chose est cool/smart/sus ?' }, usage: '/how <trait> <thing>' },
+      { name: 'gif',         desc: { en: 'Search GIFs via Giphy', fr: 'Rechercher des GIFs via Giphy' }, usage: '/gif <query> [mode]' },
+      { name: 'quote',       desc: { en: 'Random inspirational quote', fr: 'Citation inspirante al\u00e9atoire' } },
     ],
   },
   configuration: {
@@ -428,7 +439,7 @@ export async function sendHelp(
       ? buildOverview(isAdmin, client, lang)
       : buildCategoryEmbed(selected, isAdmin, client, lang);
 
-    await i.update({ embeds: [embed], components: [buildSelectMenu(lang), buildLinkButtons(client)] });
+    await i.update({ embeds: [embed], components: [buildSelectMenu(lang), buildLinkButtons(client)] }).catch(() => undefined);
   });
 
   collector.on('end', async () => {
@@ -463,10 +474,13 @@ const help: CommandDef = {
       return;
     }
 
-    const reply = await interaction.reply({
-      embeds: [buildOverview(isAdmin, interaction.client, lang)],
-      components: [buildSelectMenu(lang), buildLinkButtons(interaction.client)],
-    });
+    let reply;
+    try {
+      reply = await interaction.reply({
+        embeds: [buildOverview(isAdmin, interaction.client, lang)],
+        components: [buildSelectMenu(lang), buildLinkButtons(interaction.client)],
+      });
+    } catch { return; }
 
     const collector = reply.createMessageComponentCollector({
       componentType: ComponentType.StringSelect,
@@ -479,7 +493,7 @@ const help: CommandDef = {
         ? buildOverview(isAdmin, interaction.client, lang)
         : buildCategoryEmbed(selected, isAdmin, interaction.client, lang);
 
-      await i.update({ embeds: [embed], components: [buildSelectMenu(lang), buildLinkButtons(interaction.client)] });
+      await i.update({ embeds: [embed], components: [buildSelectMenu(lang), buildLinkButtons(interaction.client)] }).catch(() => undefined);
     });
 
     collector.on('end', async () => {

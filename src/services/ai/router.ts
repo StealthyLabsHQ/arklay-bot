@@ -1,17 +1,20 @@
-import { askClaude, askClaudeWithImage, isAvailable as claudeAvailable } from './anthropic';
-import { askGemini, askGeminiWithImage, isAvailable as geminiAvailable } from './google';
-import { askOllama, isAvailable as ollamaAvailable, getModel as getOllamaModel } from './ollama';
+// AI provider router — lazy imports: SDKs loaded only when first used
+import {
+  claudeAvailable, geminiAvailable, openaiAvailable, ollamaAvailable,
+} from './availability';
 import { getHistory, saveMessage } from '../database';
 import { getAIConfig } from '../aiConfig';
 import { isLimitReached, incrementUsage } from '../usageLimit';
+
+// Re-export error types (lightweight, no SDK)
 export { NetworkError, SafetyError, RateLimitError } from './anthropic';
 export type { TokenUsage } from './anthropic';
 
-export type Provider = 'claude' | 'gemini' | 'ollama' | 'auto';
+export type Provider = 'claude' | 'gemini' | 'openai' | 'ollama' | 'auto';
 
 export interface AskResult {
   text: string;
-  provider: 'claude' | 'gemini' | 'ollama';
+  provider: 'claude' | 'gemini' | 'openai' | 'ollama';
   model: string;
   tokenUsage?: {
     inputTokens: number;
@@ -27,6 +30,28 @@ export class DailyLimitError extends Error {
   }
 }
 
+// ── Lazy provider loaders (SDK imported on first call only) ─────────────────
+
+async function loadClaude() { return import('./anthropic'); }
+async function loadGemini() { return import('./google'); }
+async function loadOpenAI() { return import('./openai'); }
+async function loadOllama() { return import('./ollama'); }
+async function loadPersona() { return import('../../modules/ai/commands/persona'); }
+
+// ── Default models per provider ─────────────────────────────────────────────
+
+async function defaultModel(provider: string): Promise<string> {
+  if (provider === 'claude') return 'claude-sonnet-4-6';
+  if (provider === 'openai') return 'gpt-5.4-nano';
+  if (provider === 'ollama') {
+    const { getModel } = await loadOllama();
+    return getModel();
+  }
+  return 'gemini-3.1-flash-lite-preview';
+}
+
+// ── Main ask function ───────────────────────────────────────────────────────
+
 export async function ask(
   guildId: string,
   userId: string,
@@ -36,11 +61,7 @@ export async function ask(
 ): Promise<AskResult> {
   const resolved = resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
-  // Use the configured model only if it matches the resolved provider, otherwise use the default for that provider
-  const actualModel = cfg.provider === resolved ? cfg.model
-    : resolved === 'claude' ? 'claude-sonnet-4-6'
-    : resolved === 'ollama' ? getOllamaModel()
-    : 'gemini-3.1-flash-lite-preview';
+  const actualModel = cfg.provider === resolved ? cfg.model : await defaultModel(resolved);
 
   if (isLimitReached(userId, actualModel)) {
     const { getDailyLimit } = await import('../usageLimit');
@@ -49,16 +70,37 @@ export async function ask(
 
   const history = getHistory(guildId, userId);
 
+  // Inject persona if set
+  const { getPersona } = await loadPersona();
+  const personaPrompt = getPersona(userId);
+  const finalPrompt = personaPrompt ? `[Persona: ${personaPrompt}]\n\n${prompt}` : prompt;
+
   if (resolved === 'claude') {
-    const result = await askClaude(history, prompt, userId);
+    const { askClaude } = await loadClaude();
+    const result = await askClaude(history, finalPrompt, userId);
     incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', prompt);
     saveMessage(guildId, userId, 'assistant', result.text);
     return { text: result.text, provider: 'claude', model: actualModel, tokenUsage: result.usage };
   }
 
+  if (resolved === 'openai') {
+    const { askOpenAI } = await loadOpenAI();
+    const result = await askOpenAI(history, finalPrompt, userId);
+    incrementUsage(userId, actualModel);
+    saveMessage(guildId, userId, 'user', prompt);
+    saveMessage(guildId, userId, 'assistant', result.text);
+    return {
+      text: result.text,
+      provider: 'openai',
+      model: actualModel,
+      tokenUsage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+    };
+  }
+
   if (resolved === 'ollama') {
-    const result = await askOllama(history, prompt, actualModel, allowThinking);
+    const { askOllama } = await loadOllama();
+    const result = await askOllama(history, finalPrompt, actualModel, allowThinking);
     incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', prompt);
     saveMessage(guildId, userId, 'assistant', result.text);
@@ -70,7 +112,9 @@ export async function ask(
     };
   }
 
-  const result = await askGemini(history, prompt, userId);
+  // Gemini (default)
+  const { askGemini } = await loadGemini();
+  const result = await askGemini(history, finalPrompt, userId);
   incrementUsage(userId, actualModel);
   saveMessage(guildId, userId, 'user', prompt);
   saveMessage(guildId, userId, 'assistant', result.text);
@@ -82,6 +126,8 @@ export async function ask(
   };
 }
 
+// ── Ask with image ──────────────────────────────────────────────────────────
+
 export async function askWithImage(
   guildId: string,
   userId: string,
@@ -92,22 +138,20 @@ export async function askWithImage(
 ): Promise<AskResult> {
   const resolved = resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
-  const actualModel = cfg.provider === resolved ? cfg.model
-    : resolved === 'claude' ? 'claude-sonnet-4-6'
-    : resolved === 'ollama' ? getOllamaModel()
-    : 'gemini-3.1-flash-lite-preview';
+  const actualModel = cfg.provider === resolved ? cfg.model : await defaultModel(resolved);
 
   if (isLimitReached(userId, actualModel)) {
     const { getDailyLimit } = await import('../usageLimit');
     throw new DailyLimitError(actualModel, getDailyLimit(actualModel) ?? 0);
   }
 
-  // Ollama doesn't support images — fallback to Claude or Gemini
+  // Ollama doesn't support images — fallback to a vision-capable provider
   const imageProvider = resolved === 'ollama'
-    ? (claudeAvailable() ? 'claude' : geminiAvailable() ? 'gemini' : resolved)
+    ? (claudeAvailable() ? 'claude' : openaiAvailable() ? 'openai' : geminiAvailable() ? 'gemini' : resolved)
     : resolved;
 
   if (imageProvider === 'claude') {
+    const { askClaudeWithImage } = await loadClaude();
     const result = await askClaudeWithImage(prompt, imageBase64, imageMime, userId);
     incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', `[image] ${prompt}`);
@@ -115,7 +159,22 @@ export async function askWithImage(
     return { text: result.text, provider: 'claude', model: actualModel, tokenUsage: result.usage };
   }
 
+  if (imageProvider === 'openai') {
+    const { askOpenAIWithImage } = await loadOpenAI();
+    const result = await askOpenAIWithImage(prompt, imageBase64, imageMime, userId);
+    incrementUsage(userId, actualModel);
+    saveMessage(guildId, userId, 'user', `[image] ${prompt}`);
+    saveMessage(guildId, userId, 'assistant', result.text);
+    return {
+      text: result.text,
+      provider: 'openai',
+      model: actualModel,
+      tokenUsage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+    };
+  }
+
   if (imageProvider === 'gemini') {
+    const { askGeminiWithImage } = await loadGemini();
     const result = await askGeminiWithImage(prompt, imageBase64, imageMime, userId);
     incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', `[image] ${prompt}`);
@@ -132,20 +191,28 @@ export async function askWithImage(
   return ask(guildId, userId, prompt, provider);
 }
 
-function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemini' | 'ollama' {
+// ── Provider resolution (lightweight — no SDK imports) ──────────────────────
+
+function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemini' | 'openai' | 'ollama' {
   if (provider === 'auto') {
     const configured = getAIConfig(userId).provider;
     if (configured === 'ollama' && ollamaAvailable()) return 'ollama';
+    if (configured === 'openai' && openaiAvailable()) return 'openai';
     if (configured === 'gemini' && geminiAvailable()) return 'gemini';
     if (configured === 'claude' && claudeAvailable()) return 'claude';
     if (geminiAvailable()) return 'gemini';
     if (claudeAvailable()) return 'claude';
+    if (openaiAvailable()) return 'openai';
     if (ollamaAvailable()) return 'ollama';
     throw new Error('No AI provider available');
   }
   if (provider === 'claude') {
     if (!claudeAvailable()) throw new Error('Claude provider is not available (missing API key)');
     return 'claude';
+  }
+  if (provider === 'openai') {
+    if (!openaiAvailable()) throw new Error('OpenAI provider is not available (missing API key)');
+    return 'openai';
   }
   if (provider === 'ollama') {
     if (!ollamaAvailable()) throw new Error('Ollama is not configured (set OLLAMA_HOST or OLLAMA_MODEL in .env)');

@@ -69,6 +69,8 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
     try {
       await execute(interaction);
     } catch (err) {
+      // Suppress expired interaction errors — normal when Discord times out
+      if ((err as Record<string, unknown>)?.['code'] === 10062) return;
       logger.error({ err }, 'Error executing command %s', interaction.commandName);
       const msg = { content: 'An error occurred.', ephemeral: true };
       if (interaction.replied || interaction.deferred) {
@@ -84,7 +86,7 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
   const botName = config.BOT_NAME.toLowerCase();
 
   // Commands that should NOT be handled via text prefix (subcommands, complex options)
-  const TEXT_BLACKLIST = new Set(['config', 'warn', 'botrole', 'nanobanana', 'cloudai', 'localai', 'favorites', 'playlist', 'code']);
+  const TEXT_BLACKLIST = new Set(['config', 'warn', 'botrole', 'nanobanana', 'cloudai', 'localai', 'favorites', 'playlist', 'code', 'persona']);
 
   client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild || !message.content) return;

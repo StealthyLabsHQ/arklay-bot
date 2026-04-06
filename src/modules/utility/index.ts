@@ -24,6 +24,8 @@ import snipe from './commands/snipe';
 import editsnipe from './commands/editsnipe';
 import color from './commands/color';
 import timestamp from './commands/timestamp';
+import screenshot from './commands/screenshot';
+import qrcode from './commands/qrcode';
 import stealSticker from './contextMenus/stealSticker';
 import { deletedMessages } from './commands/snipe';
 import { editedMessages } from './commands/editsnipe';
@@ -31,7 +33,7 @@ import { editedMessages } from './commands/editsnipe';
 const utilityModule: BotModule = {
   name: 'utility',
   enabled: true,
-  commands: [ping, userinfo, serverinfo, remindme, poll, avatar, banner, roleinfo, channelinfo, membercount, invite, math, define, crypto, weather, afk, emoji, steal, botinfo, snipe, editsnipe, color, timestamp],
+  commands: [ping, userinfo, serverinfo, remindme, poll, avatar, banner, roleinfo, channelinfo, membercount, invite, math, define, crypto, weather, afk, emoji, steal, botinfo, snipe, editsnipe, color, timestamp, screenshot, qrcode],
   contextMenus: [stealSticker],
 
   async onLoad(client: Client): Promise<void> {

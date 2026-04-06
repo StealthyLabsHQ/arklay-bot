@@ -5,7 +5,7 @@ import { ask, NetworkError, SafetyError, RateLimitError, type Provider } from '.
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { remaining } from '../../../services/usageLimit';
 import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
-import { isVertexMode } from '../providers/anthropic';
+const isVertexMode = () => !!process.env.GOOGLE_CLOUD_PROJECT;
 import { logger } from '../../../services/logger';
 
 const LEARN_MORE = 'https://stealthylabs.eu/docs/arklay-bot';

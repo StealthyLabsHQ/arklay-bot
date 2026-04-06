@@ -2,6 +2,59 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.5.1] - 2026-04-06
+
+### AI
+- **OpenAI provider** — full ChatGPT integration (GPT-5.4 Nano, GPT-5.4 Mini, o4 Mini)
+  - Dynamic model switching: auto-upgrades to GPT-5.4 Mini for complex prompts, o4 Mini for reasoning tasks
+  - Vision support: attach images to `/ask` with OpenAI models
+  - `OPENAI_API_KEY` in `.env` — models appear in `/setmodel` when configured
+- `/code` — new models: GPT-5.3 Codex (code-optimized), GPT-5.4, GPT-5.4 Long Context (16k tokens)
+- `/persona set|custom|show|reset` — set AI personality (pirate, yoda, sarcastic, + 5 presets or custom)
+- `/explain <topic> [level]` — explain at 4 levels: like I'm 5, beginner, intermediate, expert
+- `/debate <topic>` — any 2 available providers debate (Claude, Gemini, ChatGPT, Ollama)
+- `/llm` — show your current AI model, provider, usage limits, and available providers
+- **Weekly usage limits** — all cloud models now have daily + weekly quotas
+- Claude `askClaude()` now uses `resolveClaudeModel()` — no longer crashes when user has non-Claude model configured
+
+### Music
+- `/lyrics-translate <language>` — translate current track lyrics via AI
+- `/stats` — server music statistics (top tracks, top listeners, total plays)
+- `/recommend` — AI suggests 10 tracks based on your queue and history
+- Play tracking: every track played is recorded in SQLite for `/stats`
+
+### Utility
+- `/screenshot <url>` — capture a website screenshot with multi-API fallback (thum.io → Microlink), image uploaded directly to Discord, blank page detection, clear error message for blocked sites
+- `/qrcode <text> [size]` — generate a QR code (100-1000px)
+
+### Fun
+- `/quote` — random inspirational quote (zenquotes.io)
+
+### Fixes
+- `/help` — suppress Unknown interaction (10062) errors on slow networks
+- `/help` — crash on unknown category fallback → shows overview instead
+- `/help` — updated all category descriptions and command descriptions
+- `/help` — added missing `/gif` command to help menu
+- `/ask` — `deferReply` wrapped in try/catch to prevent double-acknowledge crash
+- `/debate` — works with any 2+ providers (no longer requires specifically Claude + Gemini)
+- Handler — suppresses 10062 errors globally instead of logging as ERROR
+- OpenAI — uses `max_completion_tokens` instead of deprecated `max_tokens`
+- OpenAI — better error logging with raw status and message
+
+### Performance — Lazy Imports
+- **AI SDKs loaded on first use only** — `@anthropic-ai/sdk`, `@google/generative-ai`, `openai` no longer imported at startup
+- **Lightweight availability registry** (`availability.ts`) — 12 files now check provider availability via env vars only, no SDK imports
+- **`isVertexMode()` inlined** — 8 files no longer import `anthropic.ts` just for Vertex check
+- **`generateImage` lazy-loaded** in `/nanobanana` — Google SDK only loaded when image generation is actually used
+- Estimated: ~40-60ms faster startup, ~5-10MB less RAM at boot
+
+### Misc
+- New dependency: `openai` ^6.33.0
+- SQLite schema: added `user_persona`, `music_plays` tables (15 tables total)
+- Updated `.env.example` with `OPENAI_API_KEY`
+
+---
+
 ## [2.5.0] - 2026-04-06
 
 ### Music
