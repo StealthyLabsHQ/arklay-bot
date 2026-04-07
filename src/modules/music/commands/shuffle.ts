@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const shuffle: CommandDef = {
   data: new SlashCommandBuilder()
@@ -15,6 +16,8 @@ const shuffle: CommandDef = {
       await interaction.reply({ content: 'Not enough tracks in the queue to shuffle.', ephemeral: true });
       return;
     }
+
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
 
     queue.shuffle();
     await interaction.reply(`Queue shuffled. (${queue.tracks.length} tracks)`);

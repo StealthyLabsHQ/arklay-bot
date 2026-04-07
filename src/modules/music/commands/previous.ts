@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const previous: CommandDef = {
   data: new SlashCommandBuilder()
@@ -20,9 +21,12 @@ const previous: CommandDef = {
       return;
     }
 
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
+
     const prev = queue.history.shift()!;
     // Put it at the front of the queue so it plays next
     queue.tracks.unshift(prev);
+    queue.persistState();
 
     // If something is playing, skip to trigger the previous track
     if (queue.isPlaying) {

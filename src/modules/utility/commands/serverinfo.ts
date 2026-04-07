@@ -12,6 +12,7 @@ const serverinfo: CommandDef = {
     .addSubcommand((sub) =>
       sub.setName('icon').setDescription('Display the server icon and banner in full resolution')
     ) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const sub   = interaction.options.getSubcommand();

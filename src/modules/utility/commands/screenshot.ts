@@ -2,8 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { logger } from '../../../services/logger';
-
-const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '192.168.', '10.', '169.254.'];
+import { assertPublicHttpUrl } from '../../../services/safeFetch';
 
 const screenshot: CommandDef = {
   data: new SlashCommandBuilder()
@@ -14,26 +13,18 @@ const screenshot: CommandDef = {
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    let url = interaction.options.getString('url', true).trim();
+    const input = interaction.options.getString('url', true).trim();
 
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = `https://${url}`;
-    }
-
+    let targetUrl: URL;
     try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        await interaction.reply({ content: 'Only HTTP/HTTPS URLs are supported.', ephemeral: true });
-        return;
-      }
-      if (BLOCKED_HOSTS.some((h) => parsed.hostname.startsWith(h) || parsed.hostname === h)) {
-        await interaction.reply({ content: 'Cannot screenshot local/private addresses.', ephemeral: true });
-        return;
-      }
-    } catch {
-      await interaction.reply({ content: 'Invalid URL.', ephemeral: true });
+      targetUrl = await assertPublicHttpUrl(input, { defaultProtocol: 'https:' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid URL.';
+      await interaction.reply({ content: message, ephemeral: true });
       return;
     }
+
+    const url = targetUrl.toString();
 
     await interaction.deferReply();
 

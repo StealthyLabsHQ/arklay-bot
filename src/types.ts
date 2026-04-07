@@ -6,11 +6,13 @@ export interface CommandDef {
   data: SlashCommandBuilder;
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
   autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
+  guildOnly?: boolean;
 }
 
 export interface ContextMenuDef {
   data: ContextMenuCommandBuilder;
   execute: (interaction: MessageContextMenuCommandInteraction) => Promise<void>;
+  guildOnly?: boolean;
 }
 
 export interface BotModule {
@@ -18,6 +20,7 @@ export interface BotModule {
   enabled: boolean;
   commands: CommandDef[];
   contextMenus?: ContextMenuDef[];
+  guildOnly?: boolean;
   onLoad?: (client: Client) => Promise<void>;
   onUnload?: () => Promise<void>;
 }

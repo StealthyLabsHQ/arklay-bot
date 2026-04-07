@@ -2,7 +2,7 @@ import dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first'); // Node 24 defaults to IPv6-first - breaks UDP voice on Windows
 
 import { config as dotenvConfig } from 'dotenv';
-dotenvConfig({ override: true });
+dotenvConfig();
 import './services/db'; // Initialize SQLite before anything else
 import { config } from './services/config';
 import { client } from './core/client';

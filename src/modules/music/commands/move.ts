@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const move: CommandDef = {
   data: new SlashCommandBuilder()
@@ -20,6 +21,8 @@ const move: CommandDef = {
       await interaction.reply({ content: 'The queue is empty.', ephemeral: true });
       return;
     }
+
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
 
     const from = interaction.options.getInteger('from', true) - 1;
     const to = interaction.options.getInteger('to', true) - 1;

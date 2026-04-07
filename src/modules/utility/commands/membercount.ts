@@ -6,6 +6,7 @@ const membercount: CommandDef = {
   data: new SlashCommandBuilder()
     .setName('membercount')
     .setDescription('Show the server member count') as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guild = interaction.guild!;

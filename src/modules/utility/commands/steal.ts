@@ -15,6 +15,7 @@ const steal: CommandDef = {
       opt.setName('name').setDescription('Custom name for the emoji (optional)').setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuildExpressions) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) return;

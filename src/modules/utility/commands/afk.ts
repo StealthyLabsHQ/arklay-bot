@@ -18,6 +18,7 @@ const afk: CommandDef = {
     .setName('afk')
     .setDescription('Set your AFK status')
     .addStringOption((opt) => opt.setName('reason').setDescription('AFK reason').setRequired(false)) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const key    = `${interaction.guildId}:${interaction.user.id}`;

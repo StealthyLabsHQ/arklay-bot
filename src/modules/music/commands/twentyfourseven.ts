@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const twentyfourseven: CommandDef = {
   data: new SlashCommandBuilder()
@@ -15,8 +16,9 @@ const twentyfourseven: CommandDef = {
       return;
     }
 
-    queue.stayConnected = !queue.stayConnected;
-    const enabled = queue.stayConnected;
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
+
+    const enabled = queue.toggleStayConnected();
 
     await interaction.reply({
       embeds: [new EmbedBuilder()

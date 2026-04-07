@@ -7,6 +7,7 @@ const roleinfo: CommandDef = {
     .setName('roleinfo')
     .setDescription('Display information about a role')
     .addRoleOption((opt) => opt.setName('role').setDescription('Role to inspect').setRequired(true)) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const rawRole = interaction.options.getRole('role', true);

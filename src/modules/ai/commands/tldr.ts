@@ -2,11 +2,12 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { ask, NetworkError, SafetyError, RateLimitError, DailyLimitError } from '../router';
-const isVertexMode = () => !!process.env.GOOGLE_CLOUD_PROJECT;
 import { getAIConfig, getModelDisplayInfo } from '../../../services/aiConfig';
 import { remaining } from '../../../services/usageLimit';
 import { logger } from '../../../services/logger';
 import { withThinkingTimer } from '../../../services/thinkingTimer';
+import { assertPublicHttpUrl, safeFetch } from '../../../services/safeFetch';
+const isVertexMode = () => !!process.env.GOOGLE_CLOUD_PROJECT;
 
 const tldr: CommandDef = {
   data: new SlashCommandBuilder()
@@ -17,19 +18,24 @@ const tldr: CommandDef = {
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const url = interaction.options.getString('url', true).trim();
+    const rawUrl = interaction.options.getString('url', true).trim();
 
-    if (!/^https?:\/\//i.test(url)) {
-      await interaction.reply({ content: 'Invalid URL — must start with http:// or https://.', ephemeral: true });
+    let url: URL;
+    try {
+      url = await assertPublicHttpUrl(rawUrl);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid URL.';
+      await interaction.reply({ content: message, ephemeral: true });
       return;
     }
 
     await interaction.deferReply();
 
     try {
-      const res = await fetch(url, {
+      const res = await safeFetch(url, {
         headers: { 'User-Agent': 'DiscordBot/1.0 (TLDR)' },
         signal: AbortSignal.timeout(10_000),
+        maxRedirects: 3,
       });
 
       if (!res.ok) {
@@ -69,7 +75,7 @@ const tldr: CommandDef = {
         .setColor(0x5865f2)
         .setTitle('TL;DR')
         .setDescription(summary)
-        .addFields({ name: 'Source', value: url })
+        .addFields({ name: 'Source', value: url.toString() })
         .setFooter({ text: (() => {
           const { name, source } = getModelDisplayInfo(
             result.provider,
@@ -83,7 +89,7 @@ const tldr: CommandDef = {
 
       await interaction.editReply({ embeds: [embed] });
     } catch (err) {
-      logger.error({ err }, '/tldr failed for %s', url);
+      logger.error({ err }, '/tldr failed for %s', url.toString());
       await interaction.editReply(errorMessage(err));
     }
   },

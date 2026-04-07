@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 import { formatDuration } from '../structures/GuildQueue';
 
 function parseTimestamp(input: string): number | null {
@@ -29,6 +30,8 @@ const seek: CommandDef = {
       await interaction.reply({ content: 'Nothing is currently playing.', ephemeral: true });
       return;
     }
+
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
 
     const input   = interaction.options.getString('position', true);
     const seconds = parseTimestamp(input);

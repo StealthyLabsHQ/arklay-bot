@@ -32,6 +32,7 @@ import stats from './commands/stats';
 const musicModule: BotModule = {
   name: 'music',
   enabled: true,
+  guildOnly: true,
   commands: [play, pause, resume, skip, stop, queue, nowplaying, loop, volume, shuffle, remove, save, lyrics, seek, filter, skipto, replay, previous, move, autoplay, favorites, playlist, historyCmd, twentyfourseven, stats],
 
   async onLoad(client: Client): Promise<void> {

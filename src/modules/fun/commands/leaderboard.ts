@@ -31,6 +31,7 @@ const leaderboard: CommandDef = {
           { name: 'All time',   value: 'alltime' },
         )
     ) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     try {

@@ -2,19 +2,35 @@ import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, But
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import type { Track } from '../structures/GuildQueue';
-import { formatDuration } from '../structures/GuildQueue';
+import { formatDuration, type GuildQueue } from '../structures/GuildQueue';
 import { getQueues } from '../../../services/musicQueue';
 
-function getQueue(interaction: ChatInputCommandInteraction) {
+export function getQueue(interaction: ChatInputCommandInteraction): GuildQueue | undefined {
   return getQueues().get(interaction.guildId!);
 }
 
-/** Returns true if the user is in the same voice channel as the bot (or the bot is not connected). */
-function isInBotVoice(interaction: ChatInputCommandInteraction): boolean {
-  const queue = getQueue(interaction);
-  if (!queue?.voiceChannelId) return true;
-  const member = interaction.member as GuildMember;
-  return member.voice.channelId === queue.voiceChannelId;
+export async function ensureSameVoiceAccess(
+  interaction: ChatInputCommandInteraction,
+  queue = getQueue(interaction)
+): Promise<boolean> {
+  if (!queue || queue.canControl(interaction.member as GuildMember)) {
+    return true;
+  }
+
+  const payload = {
+    content: 'You must be in the same voice channel as the bot.',
+    ephemeral: true,
+  } as const;
+
+  if (interaction.deferred) {
+    await interaction.editReply(payload);
+  } else if (interaction.replied) {
+    await interaction.followUp(payload);
+  } else {
+    await interaction.reply(payload);
+  }
+
+  return false;
 }
 
 export const pause: CommandDef = {
@@ -28,6 +44,7 @@ export const pause: CommandDef = {
       await interaction.reply({ content: 'Nothing is currently playing.', ephemeral: true });
       return;
     }
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
     const ok = queue.pause();
     await interaction.reply(ok ? 'Paused.' : 'Could not pause.');
   },
@@ -44,6 +61,7 @@ export const resume: CommandDef = {
       await interaction.reply({ content: 'No active queue.', ephemeral: true });
       return;
     }
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
     const ok = queue.resume();
     await interaction.reply(ok ? 'Resumed.' : 'Could not resume.');
   },
@@ -55,18 +73,12 @@ export const skip: CommandDef = {
     .setDescription('Skip to the next track') as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    if (!isInBotVoice(interaction)) {
-      await interaction.reply({
-        content: 'You must be in the same voice channel as the bot.',
-        ephemeral: true,
-      });
-      return;
-    }
     const queue = getQueue(interaction);
     if (!queue?.isPlaying) {
       await interaction.reply({ content: 'Nothing is currently playing.', ephemeral: true });
       return;
     }
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
     queue.skip();
     await interaction.reply('Track skipped.');
   },
@@ -78,20 +90,13 @@ export const stop: CommandDef = {
     .setDescription('Stop playback and clear the queue') as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    if (!isInBotVoice(interaction)) {
-      await interaction.reply({
-        content: 'You must be in the same voice channel as the bot.',
-        ephemeral: true,
-      });
-      return;
-    }
     const queue = getQueue(interaction);
     if (!queue) {
       await interaction.reply({ content: 'No active queue.', ephemeral: true });
       return;
     }
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
     queue.destroy();
-    getQueues().delete(interaction.guildId!);
     await interaction.reply('Playback stopped, queue cleared.');
   },
 };

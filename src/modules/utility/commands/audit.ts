@@ -29,6 +29,7 @@ const audit: CommandDef = {
     .addIntegerOption((opt) =>
       opt.setName('limit').setDescription('Number of entries (1-15, default 10)').setMinValue(1).setMaxValue(15)
     ) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!isBotAdmin(interaction.member as GuildMember)) {

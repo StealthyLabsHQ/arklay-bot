@@ -52,6 +52,7 @@ const userinfo: CommandDef = {
       sub.setName('joinposition').setDescription('See the join position of a user in the server')
         .addUserOption((opt) => opt.setName('user').setDescription('User to check (default: yourself)').setRequired(false))
     ) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const sub = interaction.options.getSubcommand();

@@ -7,6 +7,7 @@ const stealSticker: ContextMenuDef = {
     .setName('Steal Sticker')
     .setType(ApplicationCommandType.Message)
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuildExpressions),
+  guildOnly: true,
 
   async execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
     if (!interaction.guild) return;

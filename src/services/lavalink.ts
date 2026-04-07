@@ -7,9 +7,13 @@ let shoukaku: Shoukaku | null = null;
 let lavalinkAvailable = false;
 
 export function initLavalink(client: Client): Shoukaku {
+  const nodeUrl = config.LAVALINK_SECURE && !/^wss?:\/\//i.test(config.LAVALINK_HOST)
+    ? `wss://${config.LAVALINK_HOST}`
+    : config.LAVALINK_HOST;
+
   const nodes = [{
     name: 'main',
-    url: config.LAVALINK_HOST,
+    url: nodeUrl,
     auth: config.LAVALINK_PASSWORD,
   }];
 

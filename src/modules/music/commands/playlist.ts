@@ -4,6 +4,7 @@ import type { CommandDef } from '../../../types';
 import db from '../../../services/db';
 import { getQueues } from '../../../services/musicQueue';
 import { GuildQueue } from '../structures/GuildQueue';
+import { ensureSameVoiceAccess } from './controls';
 import { resolve } from '../utils/resolver';
 import { logger } from '../../../services/logger';
 
@@ -155,6 +156,7 @@ const playlist: CommandDef = {
           queue = new GuildQueue(guildId, interaction.channel as TextChannel);
           getQueues().set(guildId, queue);
         }
+        if (!(await ensureSameVoiceAccess(interaction, queue))) return;
         await queue.connect(vc, member);
 
         const requestedBy = `<@${userId}>`;
@@ -163,7 +165,7 @@ const playlist: CommandDef = {
           try {
             const result = await resolve(t.url || t.title, requestedBy);
             if (result.tracks.length > 0) {
-              queue.tracks.push(result.tracks[0]!);
+              queue.enqueue(result.tracks[0]!);
               added++;
             }
           } catch { /* skip */ }

@@ -139,6 +139,7 @@ const giveaway: CommandDef = {
         .setDescription('Reroll a giveaway winner (admin only)')
         .addStringOption((opt) => opt.setName('message_id').setDescription('Message ID of the ended giveaway').setRequired(true))
     ) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     try {

@@ -1,5 +1,5 @@
 import { config as dotenvConfig } from 'dotenv';
-dotenvConfig({ override: true });
+dotenvConfig();
 import { REST, Routes } from 'discord.js';
 import { config } from '../services/config';
 import { loadModules } from './loader';

@@ -3,6 +3,7 @@ import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import type { LoopMode } from '../structures/GuildQueue';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const loop: CommandDef = {
   data: new SlashCommandBuilder()
@@ -28,8 +29,10 @@ const loop: CommandDef = {
       return;
     }
 
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
+
     const mode = interaction.options.getString('mode', true) as LoopMode;
-    queue.loopMode = mode;
+    queue.setLoopMode(mode);
 
     const labels: Record<LoopMode, string> = {
       off: 'Loop disabled.',

@@ -39,6 +39,7 @@ const guesssong: CommandDef = {
   data: new SlashCommandBuilder()
     .setName('guesssong')
     .setDescription('Guess a song from the current music queue!') as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;

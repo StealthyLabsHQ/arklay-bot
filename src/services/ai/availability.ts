@@ -1,23 +1,23 @@
+import { config } from '../config';
+
 // Lightweight provider availability checks — no SDK imports
 // Use this instead of importing full provider modules just to check isAvailable()
 
 export function claudeAvailable(): boolean {
-  return !!(process.env.GOOGLE_CLOUD_PROJECT || process.env.ANTHROPIC_API_KEY);
+  return !!(config.GOOGLE_CLOUD_PROJECT || config.ANTHROPIC_API_KEY);
 }
 
 export function geminiAvailable(): boolean {
-  return !!process.env.GOOGLE_AI_API_KEY;
+  return !!config.GOOGLE_AI_API_KEY;
 }
 
 export function openaiAvailable(): boolean {
-  return !!process.env.OPENAI_API_KEY;
+  return !!config.OPENAI_API_KEY;
 }
 
 export function ollamaAvailable(): boolean {
-  const enabled = process.env.OLLAMA_ENABLED?.toLowerCase();
-  if (enabled === 'false' || enabled === '0') return false;
-  if (enabled === 'true' || enabled === '1') return true;
-  return !!process.env.OLLAMA_HOST || !!process.env.OLLAMA_MODEL;
+  if (!config.OLLAMA_ENABLED) return false;
+  return !!config.OLLAMA_HOST || !!config.OLLAMA_MODEL;
 }
 
 export function anyProviderAvailable(): boolean {

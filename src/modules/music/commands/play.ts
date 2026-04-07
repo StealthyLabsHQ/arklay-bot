@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction, GuildMember, TextChannel } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { GuildQueue } from '../structures/GuildQueue';
+import { ensureSameVoiceAccess } from './controls';
 import { resolve } from '../utils/resolver';
 import { logger } from '../../../services/logger';
 import { getQueues } from '../../../services/musicQueue';
@@ -32,10 +33,13 @@ const play: CommandDef = {
     const guildId = interaction.guildId!;
 
     let queue = getQueues().get(guildId);
+    const createdQueue = !queue;
     if (!queue) {
       queue = new GuildQueue(guildId, interaction.channel as TextChannel);
       getQueues().set(guildId, queue);
     }
+
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
 
     await queue.connect(voiceChannel, member);
 
@@ -45,7 +49,9 @@ const play: CommandDef = {
       result = await resolve(query, `<@${interaction.user.id}>`);
     } catch (err) {
       logger.error({ err }, 'Resolver error');
-      getQueues().delete(guildId);
+      if (createdQueue && !queue.isPlaying && queue.tracks.length === 0 && !queue.currentTrack) {
+        queue.destroy();
+      }
       await interaction.editReply('No results found for this query.');
       return;
     }
@@ -54,7 +60,7 @@ const play: CommandDef = {
 
     const MAX_QUEUE_ADD = 50;
     const capped = tracks.slice(0, MAX_QUEUE_ADD);
-    queue.tracks.push(...capped);
+    queue.enqueueMany(capped);
 
     if (capped.length < tracks.length) {
       const ch = interaction.channel;

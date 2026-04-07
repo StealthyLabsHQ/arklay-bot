@@ -50,6 +50,7 @@ const tags: CommandDef = {
         .addStringOption((opt) => opt.setName('name').setDescription('Tag name').setRequired(true).setAutocomplete(true))
         .addStringOption((opt) => opt.setName('content').setDescription('New content (max 2000 chars)').setRequired(true).setMaxLength(2000))
     ) as SlashCommandBuilder,
+  guildOnly: true,
 
   async autocomplete(interaction: AutocompleteInteraction): Promise<void> {
     const focused = interaction.options.getFocused();

@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const remove: CommandDef = {
   data: new SlashCommandBuilder()
@@ -22,6 +23,8 @@ const remove: CommandDef = {
       await interaction.reply({ content: 'The queue is empty.', ephemeral: true });
       return;
     }
+
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
 
     const position = interaction.options.getInteger('position', true);
     const removed = queue.removeTrack(position - 1); // convert 1-based to 0-based

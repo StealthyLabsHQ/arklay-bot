@@ -6,3 +6,7 @@ const queues = new Map<string, GuildQueue>();
 export function getQueues(): Map<string, GuildQueue> {
   return queues;
 }
+
+export function removeQueue(guildId: string): void {
+  queues.delete(guildId);
+}

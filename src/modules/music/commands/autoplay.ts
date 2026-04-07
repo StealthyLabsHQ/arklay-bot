@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const autoplay: CommandDef = {
   data: new SlashCommandBuilder()
@@ -15,11 +16,13 @@ const autoplay: CommandDef = {
       return;
     }
 
-    queue.autoplay = !queue.autoplay;
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
+
+    const enabled = queue.toggleAutoplay();
 
     const embed = new EmbedBuilder()
-      .setColor(queue.autoplay ? 0x57f287 : 0xed4245)
-      .setDescription(`Autoplay ${queue.autoplay ? 'enabled' : 'disabled'}`);
+      .setColor(enabled ? 0x57f287 : 0xed4245)
+      .setDescription(`Autoplay ${enabled ? 'enabled' : 'disabled'}`);
 
     await interaction.reply({ embeds: [embed] });
   },

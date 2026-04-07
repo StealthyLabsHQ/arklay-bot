@@ -14,6 +14,7 @@ const channelinfo: CommandDef = {
       sub.setName('firstmessage').setDescription('Get a link to the first message in a channel')
         .addChannelOption((opt) => opt.setName('channel').setDescription('Channel (default: current)').setRequired(false))
     ) as SlashCommandBuilder,
+  guildOnly: true,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const sub = interaction.options.getSubcommand();

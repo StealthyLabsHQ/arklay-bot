@@ -3,6 +3,9 @@
   "version": "2.5.2",
   "description": "StealthyLabs Discord bot — modular architecture v2",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",

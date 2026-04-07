@@ -1,6 +1,6 @@
 import type { Client, MessageContextMenuCommandInteraction, ChatInputCommandInteraction, AutocompleteInteraction } from 'discord.js';
 import { Events, ActivityType, OAuth2Scopes, PermissionFlagsBits } from 'discord.js';
-import type { BotModule } from '../types';
+import type { BotModule, CommandDef, ContextMenuDef } from '../types';
 import { logger } from '../services/logger';
 import { config } from '../services/config';
 import { isLavalinkReady } from '../services/lavalink';
@@ -8,19 +8,19 @@ import { TextInteractionAdapter, MissingArgError } from './textAdapter';
 
 export function registerHandler(client: Client, modules: Map<string, BotModule>): void {
   // Build a flat command lookup: commandName → execute fn
-  const commandMap = new Map<string, BotModule['commands'][number]['execute']>();
+  const commandMap = new Map<string, CommandDef>();
   const autocompleteMap = new Map<string, (interaction: AutocompleteInteraction) => Promise<void>>();
-  const contextMenuMap = new Map<string, (interaction: MessageContextMenuCommandInteraction) => Promise<void>>();
+  const contextMenuMap = new Map<string, ContextMenuDef>();
   const musicCommands = new Set<string>();
 
   for (const mod of modules.values()) {
     for (const cmd of mod.commands) {
-      commandMap.set(cmd.data.name, cmd.execute);
+      commandMap.set(cmd.data.name, { ...cmd, guildOnly: cmd.guildOnly ?? mod.guildOnly ?? false });
       if (cmd.autocomplete) autocompleteMap.set(cmd.data.name, cmd.autocomplete);
       if (mod.name === 'music') musicCommands.add(cmd.data.name);
     }
     for (const ctx of mod.contextMenus ?? []) {
-      contextMenuMap.set(ctx.data.name, ctx.execute);
+      contextMenuMap.set(ctx.data.name, { ...ctx, guildOnly: ctx.guildOnly ?? mod.guildOnly ?? false });
     }
   }
 
@@ -34,8 +34,8 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
 
     // Handle context menu commands
     if (interaction.isMessageContextMenuCommand()) {
-      const execute = contextMenuMap.get(interaction.commandName);
-      if (!execute) {
+      const command = contextMenuMap.get(interaction.commandName);
+      if (!command) {
         logger.warn('Unknown context menu: %s', interaction.commandName);
         return;
       }
@@ -43,8 +43,12 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
         { guildId: interaction.guildId, userId: interaction.user.id, command: interaction.commandName },
         'ctx-menu'
       );
+      if (command.guildOnly && !interaction.inGuild()) {
+        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true }).catch(() => undefined);
+        return;
+      }
       try {
-        await execute(interaction);
+        await command.execute(interaction);
       } catch (err) {
         logger.error({ err }, 'Error executing context menu %s', interaction.commandName);
         const msg = { content: 'An error occurred.', ephemeral: true };
@@ -59,8 +63,8 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
 
     if (!interaction.isChatInputCommand()) return;
 
-    const execute = commandMap.get(interaction.commandName);
-    if (!execute) {
+    const command = commandMap.get(interaction.commandName);
+    if (!command) {
       logger.warn('Unknown command: %s', interaction.commandName);
       return;
     }
@@ -75,8 +79,13 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
       return;
     }
 
+    if (command.guildOnly && !interaction.inGuild()) {
+      await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      return;
+    }
+
     try {
-      await execute(interaction);
+      await command.execute(interaction);
     } catch (err) {
       // Suppress expired interaction errors — normal when Discord times out
       if ((err as Record<string, unknown>)?.['code'] === 10062) return;
@@ -123,8 +132,8 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
 
     if (!cmdName) return;
 
-    const execute = commandMap.get(cmdName);
-    if (!execute || TEXT_BLACKLIST.has(cmdName)) return;
+    const command = commandMap.get(cmdName);
+    if (!command || TEXT_BLACKLIST.has(cmdName)) return;
 
     if (musicCommands.has(cmdName) && !isLavalinkReady()) {
       await message.channel.send('Music is currently unavailable — Lavalink server is not running.').catch(() => undefined);
@@ -139,7 +148,7 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
     const adapter = new TextInteractionAdapter(message, cmdName, rawArgs);
 
     try {
-      await execute(adapter as unknown as ChatInputCommandInteraction);
+      await command.execute(adapter as unknown as ChatInputCommandInteraction);
     } catch (err) {
       if (err instanceof MissingArgError) {
         await message.channel.send(`Usage: \`${prefix}${cmdName} <${err.argName}>\``).catch(() => undefined);

@@ -4,6 +4,7 @@ import type { GuildMember, Message, TextChannel, VoiceBasedChannel } from 'disco
 import { getShoukaku } from '../../../services/lavalink';
 import { logger } from '../../../services/logger';
 import { saveQueueState, deleteQueueState } from '../../../services/musicResume';
+import { removeQueue } from '../../../services/musicQueue';
 import { recordPlay } from '../commands/stats';
 
 export interface Track {
@@ -121,6 +122,7 @@ export class GuildQueue {
   private activeFilter: string = 'none';
   private nowPlayingMessage: Message | null = null;
   private _pauseStart: number | null = null;
+  private collectorBound = false;
 
   constructor(guildId: string, textChannel: TextChannel) {
     this.guildId = guildId;
@@ -130,10 +132,10 @@ export class GuildQueue {
   // ── Connection ─────────────────────────────────────────────────────────────
 
   async connect(voiceChannel: VoiceBasedChannel, _member: GuildMember): Promise<void> {
-    if (this.lavalinkPlayer) return;
-
     this.cancelDestroyTimer();
     this.voiceChannelId = voiceChannel.id;
+
+    if (this.lavalinkPlayer) return;
 
     const shoukaku = getShoukaku();
 
@@ -307,6 +309,7 @@ export class GuildQueue {
 
   async setVolume(level: number): Promise<boolean> {
     this.volume = level;
+    this.persistState();
     if (!this.lavalinkPlayer) return false;
     await this.lavalinkPlayer.setGlobalVolume(level);
     return true;
@@ -322,6 +325,7 @@ export class GuildQueue {
     this.activeFilter = type;
     const preset = FILTER_PRESETS[type] ?? {};
     await this.lavalinkPlayer.setFilters(preset);
+    this.persistState();
   }
 
   getPlaybackDuration(): number {
@@ -333,13 +337,16 @@ export class GuildQueue {
 
   removeTrack(index: number): Track | null {
     if (index < 0 || index >= this.tracks.length) return null;
-    return this.tracks.splice(index, 1)[0] ?? null;
+    const removed = this.tracks.splice(index, 1)[0] ?? null;
+    if (removed) this.persistState();
+    return removed;
   }
 
   moveTrack(from: number, to: number): boolean {
     if (from < 0 || from >= this.tracks.length || to < 0 || to >= this.tracks.length) return false;
     const [track] = this.tracks.splice(from, 1);
     this.tracks.splice(to, 0, track!);
+    this.persistState();
     return true;
   }
 
@@ -349,6 +356,40 @@ export class GuildQueue {
       [this.tracks[i], this.tracks[j]] = [this.tracks[j]!, this.tracks[i]!];
     }
     this.shuffled = true;
+    this.persistState();
+  }
+
+  setLoopMode(mode: LoopMode): void {
+    this.loopMode = mode;
+    this.persistState();
+  }
+
+  toggleAutoplay(): boolean {
+    this.autoplay = !this.autoplay;
+    this.persistState();
+    return this.autoplay;
+  }
+
+  toggleStayConnected(): boolean {
+    this.stayConnected = !this.stayConnected;
+    this.persistState();
+    return this.stayConnected;
+  }
+
+  setShuffled(enabled: boolean): void {
+    this.shuffled = enabled;
+    this.persistState();
+  }
+
+  enqueue(track: Track): void {
+    this.tracks.push(track);
+    this.persistState();
+  }
+
+  enqueueMany(tracks: Track[]): void {
+    if (tracks.length === 0) return;
+    this.tracks.push(...tracks);
+    this.persistState();
   }
 
   getTextChannel(): TextChannel { return this.textChannel; }
@@ -389,7 +430,7 @@ export class GuildQueue {
         requestedBy: 'Autoplay',
       };
 
-      this.tracks.push(track);
+      this.enqueue(track);
       this.textChannel.send(`Autoplay: added **${track.title}**`).catch(() => undefined);
       this.playNext().catch((err) => logger.error({ err }, 'autoplay playNext error'));
     } catch {
@@ -406,7 +447,11 @@ export class GuildQueue {
     this.currentTrack = null;
     this.isPlaying = false;
     this.activeFilter = 'none';
+    this.voiceChannelId = null;
+    this.history = [];
+    this.shuffled = false;
     deleteQueueState(this.guildId);
+    removeQueue(this.guildId);
 
     if (this.lavalinkPlayer) {
       const shoukaku = getShoukaku();
@@ -537,11 +582,21 @@ export class GuildQueue {
   }
 
   private setupButtonCollector(): void {
-    if (!this.nowPlayingMessage) return;
+    if (!this.nowPlayingMessage || this.collectorBound) return;
+    this.collectorBound = true;
     const collector = this.nowPlayingMessage.createMessageComponentCollector({ time: 86_400_000 });
 
     collector.on('collect', async (interaction) => {
       try {
+        if (!this.canControl(interaction.member as GuildMember | null)) {
+          if (interaction.deferred || interaction.replied) {
+            await interaction.followUp({ content: 'You must be in the same voice channel as the bot.', ephemeral: true });
+          } else {
+            await interaction.reply({ content: 'You must be in the same voice channel as the bot.', ephemeral: true });
+          }
+          return;
+        }
+
         // Handle select menu (filter)
         if (interaction.isStringSelectMenu() && interaction.customId === 'player_filter') {
           const selected = interaction.values[0] ?? 'none';
@@ -569,32 +624,32 @@ export class GuildQueue {
             break;
           case 'player_loop': {
             const modes: LoopMode[] = ['off', 'track', 'queue'];
-            this.loopMode = modes[(modes.indexOf(this.loopMode) + 1) % modes.length]!;
+            this.setLoopMode(modes[(modes.indexOf(this.loopMode) + 1) % modes.length]!);
             await this.updateNowPlaying();
             await interaction.deferUpdate();
             break;
           }
           case 'player_shuffle':
-            if (this.shuffled) this.shuffled = false; else this.shuffle();
+            if (this.shuffled) this.setShuffled(false); else this.shuffle();
             await this.updateNowPlaying();
             await interaction.deferUpdate();
             break;
           case 'player_previous':
-            if (this.history.length > 0) { this.tracks.unshift(this.history.shift()!); this.skip(); }
+            if (this.history.length > 0) { this.tracks.unshift(this.history.shift()!); this.persistState(); this.skip(); }
             await interaction.deferUpdate();
             break;
           case 'player_autoplay':
-            this.autoplay = !this.autoplay;
+            this.toggleAutoplay();
             await this.updateNowPlaying();
             await interaction.deferUpdate();
             break;
           case 'player_voldown':
-            this.setVolume(Math.max(0, this.volume - 10));
+            await this.setVolume(Math.max(0, this.volume - 10));
             await this.updateNowPlaying();
             await interaction.deferUpdate();
             break;
           case 'player_volup':
-            this.setVolume(Math.min(100, this.volume + 10));
+            await this.setVolume(Math.min(100, this.volume + 10));
             await this.updateNowPlaying();
             await interaction.deferUpdate();
             break;
@@ -604,7 +659,15 @@ export class GuildQueue {
       } catch { /* expired interaction or already replied — safe to ignore */ }
     });
 
-    collector.on('end', () => { this.disableNowPlaying(); });
+    collector.on('end', () => {
+      this.collectorBound = false;
+      this.disableNowPlaying();
+    });
+  }
+
+  canControl(member: GuildMember | null): boolean {
+    if (!this.voiceChannelId) return true;
+    return member?.voice.channelId === this.voiceChannelId;
   }
 
   // ── Persistence ────────────────────────────────────────────────────────────

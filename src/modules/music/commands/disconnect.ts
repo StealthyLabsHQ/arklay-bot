@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const disconnect: CommandDef = {
   data: new SlashCommandBuilder()
@@ -16,8 +17,9 @@ const disconnect: CommandDef = {
       return;
     }
 
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
+
     queue.destroy();
-    getQueues().delete(interaction.guildId!);
     await interaction.reply('Disconnected.');
   },
 };

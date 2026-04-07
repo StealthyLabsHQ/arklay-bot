@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const volume: CommandDef = {
   data: new SlashCommandBuilder()
@@ -23,6 +24,8 @@ const volume: CommandDef = {
       await interaction.reply({ content: 'No active queue.', ephemeral: true });
       return;
     }
+
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
 
     const level = interaction.options.getInteger('level', true);
     await queue.setVolume(level);

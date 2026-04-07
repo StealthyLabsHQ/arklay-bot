@@ -21,6 +21,7 @@ import type { Client } from 'discord.js';
 const moderationModule: BotModule = {
   name: 'moderation',
   enabled: true,
+  guildOnly: true,
   commands: [clear, botrole, help, timeout, ban, slowmode, warn, lockdown, mute, kick, unban, nuke, role, modlogs, caseCmd, antinuke],
 
   async onLoad(client: Client): Promise<void> {

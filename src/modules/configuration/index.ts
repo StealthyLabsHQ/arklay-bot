@@ -9,6 +9,7 @@ import config from './commands/config';
 const configModule: BotModule = {
   name: 'configuration',
   enabled: true,
+  guildOnly: true,
   commands: [config],
 
   async onLoad(client: Client): Promise<void> {

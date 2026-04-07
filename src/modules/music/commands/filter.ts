@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { getQueues } from '../../../services/musicQueue';
+import { ensureSameVoiceAccess } from './controls';
 
 const filter: CommandDef = {
   data: new SlashCommandBuilder()
@@ -34,6 +35,8 @@ const filter: CommandDef = {
       await interaction.reply({ content: 'Nothing is currently playing.', ephemeral: true });
       return;
     }
+
+    if (!(await ensureSameVoiceAccess(interaction, queue))) return;
 
     let type = interaction.options.getString('type', true);
 
