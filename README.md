@@ -8,20 +8,20 @@ Built by [StealthyLabs](https://stealthylabs.eu).
 
 ## Features
 
-**Music** (27 commands)
-Play music from SoundCloud, Spotify, and YouTube with full queue management, audio filters, lyrics (with AI translation), persistent player UI with buttons and filter dropdown, auto-resume on restart, autoplay, and track history. Save favorites, create personal playlists, view server music stats, get AI recommendations, and enable 24/7 mode. Powered by Lavalink + Shoukaku with SoundCloud as primary streaming source.
+**Music** (25 commands)
+Play music from SoundCloud, Spotify, and YouTube with full queue management, audio filters, lyrics, persistent player UI with buttons and filter dropdown, auto-resume on restart, autoplay, and track history. Save favorites, create personal playlists, view server music stats, and enable 24/7 mode. Powered by Lavalink + Shoukaku with SoundCloud as primary streaming source.
 
-**AI** (16 commands + local/cloud AI management)
-Chat with Claude (Anthropic), Gemini (Google), ChatGPT (OpenAI), or a local model via Ollama. Generate or analyze code with Codex/GPT-5.4 (temp 0). Generate images with Nano Banana 2, translate text, analyze images (attach to `/ask`), set AI personas, explain topics at your level, watch AIs debate each other, check your model with `/llm`. Bot owner can customize system prompts for cloud (`/cloudai`) and local (`/localai`) AI. Daily + weekly usage limits per model. Dynamic model switching for OpenAI based on prompt complexity.
+**AI** (15 commands + local/cloud AI management)
+Chat with Claude (Anthropic), Gemini (Google), ChatGPT (OpenAI), or a local model via Ollama. Generate or analyze code with Codex/GPT-5.4 (temp 0). Generate images with Nano Banana 2, translate text, analyze images (attach to `/ask`), set AI personas, explain topics at your level, watch AIs debate each other, summarize webpages with `/tldr`, check your model with `/llm`. Bot owner can customize system prompts via `/cloudai` and `/localai`. Daily + weekly usage limits per model. Dynamic model switching for OpenAI based on prompt complexity.
 
-**Moderation** (12 commands)
-Ban, kick, timeout, warn, mute, lockdown, slowmode, clear messages, nuke channels, manage bot admin roles, and toggle roles.
+**Moderation** (15 commands)
+Ban, kick, timeout, warn, mute, lockdown, slowmode, clear messages, nuke channels, manage bot admin roles, toggle roles. Full moderation case tracking with `/modlogs` and `/case`. Anti-nuke protection with `/antinuke` (detects mass-ban, mass-kick, mass-channel-delete, mass-role-delete).
 
-**Utility** (25 commands)
-Ping, user/server/role/channel info, avatar, banner, polls, reminders, math, dictionary, crypto prices, weather, AFK status, emoji info, steal emojis, snipe deleted/edited messages, color preview, timestamp converter, website screenshots, QR code generator, bot info, and invite link.
+**Utility** (28 commands)
+Ping, user info (with permissions & join position), server info (with icon/banner), role/channel info (with first message), avatar, banner, polls, reminders, math, dictionary, crypto prices, weather, AFK, emoji info, steal emojis, snipe deleted messages, color preview, timestamp converter, screenshots, QR codes, bot info, invite link, Twitch live status, audit log viewer, custom tags, giveaways.
 
-**Fun** (12 commands)
-Magic 8-ball, random choice, coin flip, dice rolls, trivia (with AI category), Reddit memes (with search), GIF search (Giphy), guess the song, rock paper scissors, rate anything, fun percentages, and inspirational quotes.
+**Fun** (13 commands)
+Magic 8-ball, random choice, coin flip, dice rolls, trivia (with AI category), Reddit memes, GIF search (Giphy), guess the song, rock paper scissors, rate anything, fun percentages, inspirational quotes, and music leaderboard.
 
 **Configuration** (7 subcommands)
 Auto-role, welcome messages, mod log channel, temporary voice channels, AI auto-moderation, and server language.
@@ -165,6 +165,8 @@ Edit `.env` and fill in your values:
 | `SPOTIFY_CLIENT_SECRET` | No | Enables Spotify link resolution |
 | `OPENAI_API_KEY` | No | Enables ChatGPT models (GPT-5.4 Nano/Mini, Codex, o4 Mini) |
 | `GIPHY_API_KEY` | No | Enables `/gif` command (free at [developers.giphy.com](https://developers.giphy.com/)) |
+| `TWITCH_CLIENT_ID` | No | Enables `/twitch` command (from [dev.twitch.tv](https://dev.twitch.tv/console)) |
+| `TWITCH_CLIENT_SECRET` | No | Enables `/twitch` command |
 | `OLLAMA_ENABLED` | No | Enable/disable local AI entirely (`true`/`false`, default `false`) |
 | `OLLAMA_HOST` | No | Ollama server address (default `http://localhost:11434`) |
 | `OLLAMA_MODEL` | No | Local AI model (default `gemma4:26b`) |
@@ -235,9 +237,7 @@ YouTube may block audio streaming without cookies. If music playback fails, expo
 | `/playlist create\|save\|load\|show\|list\|delete` | Personal playlists — save queue, load later |
 | `/history` | Show the 20 most recently played tracks |
 | `/247` | Toggle 24/7 mode — bot stays in voice channel |
-| `/lyrics-translate <language>` | Translate the current track's lyrics |
 | `/stats` | Server music statistics (top tracks, top listeners) |
-| `/recommend` | AI recommends tracks based on your queue and history |
 
 The music player features a persistent Now Playing embed with interactive buttons (pause/resume, skip, stop, loop, shuffle, autoplay) and a dropdown menu for audio filters. The Now Playing also displays the upcoming queue with source-specific colors (orange for SoundCloud, green for Spotify, red for YouTube). Queue state is saved to SQLite and auto-resumes after bot restart. The bot auto-disconnects after 5 minutes of inactivity. If Lavalink is not running, music commands are gracefully disabled with a clear message. SoundCloud is used as the primary streaming source with YouTube as fallback.
 
@@ -255,7 +255,6 @@ The music player features a persistent Now Playing embed with interactive button
 | `/translate <language> <text>` | AI-powered translation |
 | `/roast <user>` | Contextual AI roast (uses target's recent messages) |
 | `/vision <image> <prompt>` | Analyze an image with AI (Claude or Gemini) |
-| `/catchup` | AI-powered summary of recent channel activity |
 | `/tldr <url>` | Summarize a webpage with AI |
 | `/code <prompt> <model> [file]` | Generate or analyze code (temp 0, full reasoning) — supports file/image upload |
 | `/cloudai prompt [text]` | View or set custom system prompt for cloud AI (owner only) |
@@ -287,6 +286,9 @@ The music player features a persistent Now Playing embed with interactive button
 | `/nuke` | Delete and recreate a channel |
 | `/botrole add/remove/list` | Manage bot admin roles |
 | `/role <user> <role>` | Toggle a role on a user (add or remove) |
+| `/modlogs <user>` | View full moderation history for a user |
+| `/case <id>` | View a specific moderation case by ID |
+| `/antinuke enable/config/whitelist/status/logs` | Anti-nuke protection (mass-ban, mass-kick, mass-channel/role-delete) |
 
 ### Utility
 
@@ -295,12 +297,16 @@ The music player features a persistent Now Playing embed with interactive button
 | `/help [command]` | Interactive help center with dropdown categories and command details |
 | `/botinfo` | About Arklay — developer, stats, and social links |
 | `/ping` | Bot latency |
-| `/userinfo [user]` | User information (status, badges, roles, permissions, activity) |
-| `/serverinfo` | Server statistics |
+| `/userinfo info [user]` | User information (status, badges, roles, permissions, activity) |
+| `/userinfo permissions [user]` | View all notable permissions of a user |
+| `/userinfo joinposition [user]` | See the join position of a user in the server |
+| `/serverinfo info` | Server statistics |
+| `/serverinfo icon` | Server icon and banner in full resolution |
 | `/avatar [user]` | Full-size avatar |
 | `/banner [user]` | User banner |
 | `/roleinfo <role>` | Role details |
-| `/channelinfo [channel]` | Channel details |
+| `/channelinfo info [channel]` | Channel details |
+| `/channelinfo firstmessage [channel]` | Link to the first message in a channel |
 | `/membercount` | Server member count |
 | `/invite` | Bot invite link |
 | `/math <expression>` | Calculator |
@@ -313,11 +319,14 @@ The music player features a persistent Now Playing embed with interactive button
 | `/emoji <emoji>` | Get info and full-size image of a custom emoji |
 | `/steal <emoji> [name]` | Add an external emoji to this server |
 | `/snipe` | Show the last deleted message in the channel |
-| `/editsnipe` | Show the previous version of the last edited message |
 | `/color <hex>` | Preview a color with hex, RGB values |
 | `/timestamp <date>` | Convert a date to all Discord timestamp formats |
 | `/screenshot <url>` | Take a screenshot of a website |
 | `/qrcode <text> [size]` | Generate a QR code |
+| `/tags create/show/list/edit/delete` | Custom server text snippets (admin only) |
+| `/giveaway start/end/reroll` | Create and manage giveaways (admin only) |
+| `/twitch <username>` | Check if a Twitch streamer is currently live |
+| `/audit [limit]` | View recent Discord audit log entries (admin only) |
 
 **Context Menu:** Right-click any message → Apps → **Steal Sticker** to add its sticker to your server.
 
@@ -337,6 +346,7 @@ The music player features a persistent Now Playing embed with interactive button
 | `/rate <thing>` | Rate something 0-10 with progress bar |
 | `/how <trait> <thing>` | Fun percentage (e.g. "how cool is @user") |
 | `/quote` | Random inspirational quote |
+| `/leaderboard [period]` | Top music listeners on this server (week/month/all time) |
 
 ### Configuration (admin only)
 
@@ -406,7 +416,7 @@ src/
 
 Each module is independent and can be enabled/disabled. Modules never import from each other, only from `services/`.
 
-Data is persisted in SQLite (`data/bot.db`) with 15 tables: warnings, guild_config, ai_config, image_config, conversation_history, usage_limits, bot_admin_roles, music_resume, localai_config, localai_knowledge, user_favorites, user_playlists, playlist_tracks, user_persona, and music_plays.
+Data is persisted in SQLite (`data/bot.db`) with 18 tables: warnings, guild_config, ai_config, image_config, conversation_history, usage_limits, bot_admin_roles, music_resume, localai_config, localai_knowledge, user_favorites, user_playlists, playlist_tracks, user_persona, music_plays, guild_tags, giveaways, mod_cases, antinuke_config, and antinuke_logs.
 
 ## AI Models
 
