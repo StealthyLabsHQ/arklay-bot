@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { isBotAdmin } from '../../../services/permissions';
+import { logCase } from '../../../services/modcases';
 
 const ban: CommandDef = {
   data: new SlashCommandBuilder()
@@ -43,6 +44,7 @@ const ban: CommandDef = {
     }
 
     await interaction.guild!.members.ban(user, { reason, deleteMessageSeconds: delSecs });
+    logCase(interaction.guildId!, user.id, interaction.user.id, 'ban', reason);
 
     const embed = new EmbedBuilder()
       .setColor(0xed4245)

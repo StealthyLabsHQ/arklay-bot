@@ -1,10 +1,11 @@
-import type { SlashCommandBuilder, ContextMenuCommandBuilder, ChatInputCommandInteraction, MessageContextMenuCommandInteraction, Client } from 'discord.js';
+import type { SlashCommandBuilder, ContextMenuCommandBuilder, ChatInputCommandInteraction, MessageContextMenuCommandInteraction, AutocompleteInteraction, Client } from 'discord.js';
 
 export type { LoopMode } from './modules/music/structures/GuildQueue';
 
 export interface CommandDef {
   data: SlashCommandBuilder;
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
+  autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
 }
 
 export interface ContextMenuDef {

@@ -27,14 +27,12 @@ import favorites from './commands/favorites';
 import playlist from './commands/playlist';
 import historyCmd from './commands/history';
 import twentyfourseven from './commands/twentyfourseven';
-import lyricstranslate from './commands/lyricstranslate';
 import stats from './commands/stats';
-import recommend from './commands/recommend';
 
 const musicModule: BotModule = {
   name: 'music',
   enabled: true,
-  commands: [play, pause, resume, skip, stop, queue, nowplaying, loop, volume, shuffle, remove, save, lyrics, seek, filter, skipto, replay, previous, move, autoplay, favorites, playlist, historyCmd, twentyfourseven, lyricstranslate, stats, recommend],
+  commands: [play, pause, resume, skip, stop, queue, nowplaying, loop, volume, shuffle, remove, save, lyrics, seek, filter, skipto, replay, previous, move, autoplay, favorites, playlist, historyCmd, twentyfourseven, stats],
 
   async onLoad(client: Client): Promise<void> {
     logger.info('music: module loaded (yt-dlp backend)');

@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { isBotAdmin } from '../../../services/permissions';
+import { logCase } from '../../../services/modcases';
 
 const kick: CommandDef = {
   data: new SlashCommandBuilder()
@@ -29,6 +30,7 @@ const kick: CommandDef = {
     }
 
     await target.kick(reason);
+    logCase(interaction.guildId!, target.id, interaction.user.id, 'kick', reason);
 
     const embed = new EmbedBuilder()
       .setColor(0xed4245)

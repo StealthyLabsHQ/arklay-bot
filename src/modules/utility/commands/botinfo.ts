@@ -45,7 +45,8 @@ const botinfo: CommandDef = {
         { name: t({ en: 'Users', fr: 'Utilisateurs' }, lang), value: `${users.toLocaleString()}`, inline: true },
         { name: t({ en: 'Uptime', fr: 'En ligne depuis' }, lang), value: uptimeStr, inline: true },
         { name: 'Node.js', value: process.version, inline: true },
-        { name: t({ en: 'AI Providers', fr: 'Fournisseurs IA' }, lang), value: 'Anthropic Claude\nGoogle Gemini', inline: true },
+        { name: 'Version', value: 'v2.5.1', inline: true },
+        { name: t({ en: 'AI Providers', fr: 'Fournisseurs IA' }, lang), value: 'Anthropic Claude\nGoogle Gemini\nOpenAI ChatGPT', inline: true },
         { name: t({ en: 'Music Sources', fr: 'Sources musicales' }, lang), value: 'YouTube\nSpotify\nSoundCloud', inline: true },
       )
       .setFooter({ text: t({ en: 'Made with \u2764 by StealthyLabs', fr: 'Fait avec \u2764 par StealthyLabs' }, lang) })

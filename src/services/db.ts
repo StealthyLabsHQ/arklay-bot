@@ -148,6 +148,64 @@ db.exec(`
     loop_mode         TEXT NOT NULL DEFAULT 'off',
     filter            TEXT NOT NULL DEFAULT 'none'
   );
+
+  CREATE TABLE IF NOT EXISTS guild_tags (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id   TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    author_id  TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    uses       INTEGER DEFAULT 0,
+    UNIQUE(guild_id, name)
+  );
+
+  CREATE TABLE IF NOT EXISTS giveaways (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id     TEXT NOT NULL,
+    channel_id   TEXT NOT NULL,
+    message_id   TEXT,
+    prize        TEXT NOT NULL,
+    host_id      TEXT NOT NULL,
+    winner_count INTEGER DEFAULT 1,
+    ends_at      TEXT NOT NULL,
+    ended        INTEGER DEFAULT 0,
+    winners      TEXT DEFAULT '[]'
+  );
+
+  CREATE TABLE IF NOT EXISTS mod_cases (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id     TEXT NOT NULL,
+    user_id      TEXT NOT NULL,
+    moderator_id TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    reason       TEXT NOT NULL,
+    extra        TEXT,
+    timestamp    INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_mod_cases_guild_user ON mod_cases(guild_id, user_id);
+
+  CREATE TABLE IF NOT EXISTS antinuke_config (
+    guild_id          TEXT PRIMARY KEY,
+    enabled           INTEGER NOT NULL DEFAULT 0,
+    ban_threshold     INTEGER NOT NULL DEFAULT 3,
+    kick_threshold    INTEGER NOT NULL DEFAULT 3,
+    channel_threshold INTEGER NOT NULL DEFAULT 2,
+    role_threshold    INTEGER NOT NULL DEFAULT 2,
+    window_seconds    INTEGER NOT NULL DEFAULT 10,
+    action            TEXT NOT NULL DEFAULT 'strip',
+    whitelist         TEXT NOT NULL DEFAULT '[]'
+  );
+
+  CREATE TABLE IF NOT EXISTS antinuke_logs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id     TEXT NOT NULL,
+    trigger_type TEXT NOT NULL,
+    actor_id     TEXT NOT NULL,
+    action_taken TEXT NOT NULL,
+    timestamp    INTEGER NOT NULL
+  );
 `);
 
 // ── Migrations for existing databases ────────────────────────────────────────

@@ -35,7 +35,6 @@ if (!hasAnyProvider) {
 }
 
 import vision from './commands/vision';
-import catchup from './commands/catchup';
 import tldr from './commands/tldr';
 import cloudai from './commands/cloudai';
 import localai from './commands/localai';
@@ -45,7 +44,7 @@ import explain from './commands/explain';
 import debate from './commands/debate';
 import llm from './commands/llm';
 
-const commands = [askCommand, summarize, setmodel, nanobanana, translate, roast, vision, catchup, tldr, cloudai, code, persona, explain, debate, llm];
+const commands = [askCommand, summarize, setmodel, nanobanana, translate, roast, vision, tldr, cloudai, code, persona, explain, debate, llm];
 
 // Only register /localai when Ollama is configured
 if (ollamaEnabled) commands.push(localai);

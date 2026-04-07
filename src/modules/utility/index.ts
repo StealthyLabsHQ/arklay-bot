@@ -2,6 +2,8 @@ import type { Client } from 'discord.js';
 import { Events } from 'discord.js';
 import type { BotModule } from '../../types';
 import ping from './commands/ping';
+import tags from './commands/tags';
+import giveaway, { setGiveawayClient, restoreGiveaways } from './commands/giveaway';
 import userinfo from './commands/userinfo';
 import serverinfo from './commands/serverinfo';
 import remindme from './commands/remindme';
@@ -20,8 +22,9 @@ import afk from './commands/afk';
 import emoji from './commands/emoji';
 import steal from './commands/steal';
 import botinfo from './commands/botinfo';
+import twitch from './commands/twitch';
+import audit from './commands/audit';
 import snipe from './commands/snipe';
-import editsnipe from './commands/editsnipe';
 import color from './commands/color';
 import timestamp from './commands/timestamp';
 import screenshot from './commands/screenshot';
@@ -33,10 +36,12 @@ import { editedMessages } from './commands/editsnipe';
 const utilityModule: BotModule = {
   name: 'utility',
   enabled: true,
-  commands: [ping, userinfo, serverinfo, remindme, poll, avatar, banner, roleinfo, channelinfo, membercount, invite, math, define, crypto, weather, afk, emoji, steal, botinfo, snipe, editsnipe, color, timestamp, screenshot, qrcode],
+  commands: [ping, userinfo, serverinfo, remindme, poll, avatar, banner, roleinfo, channelinfo, membercount, invite, math, define, crypto, weather, afk, emoji, steal, botinfo, snipe, color, timestamp, screenshot, qrcode, tags, giveaway, twitch, audit],
   contextMenus: [stealSticker],
 
   async onLoad(client: Client): Promise<void> {
+    setGiveawayClient(client);
+    await restoreGiveaways();
     // Snipe: track deleted messages
     client.on(Events.MessageDelete, (message) => {
       if (!message.author || message.author.bot) return;

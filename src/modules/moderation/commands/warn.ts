@@ -3,6 +3,7 @@ import type { ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { isBotAdmin } from '../../../services/permissions';
 import { addWarning, getWarnings, clearWarnings } from '../../../services/warnings';
+import { logCase } from '../../../services/modcases';
 
 const warn: CommandDef = {
   data: new SlashCommandBuilder()
@@ -41,6 +42,7 @@ const warn: CommandDef = {
     if (sub === 'add') {
       const reason   = interaction.options.getString('reason', true);
       const warnings = addWarning(guildId, user.id, reason, interaction.user.id);
+      logCase(guildId, user.id, interaction.user.id, 'warn', reason);
 
       const embed = new EmbedBuilder()
         .setColor(0xfee75c)

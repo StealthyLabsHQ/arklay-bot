@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { isBotAdmin } from '../../../services/permissions';
+import { logCase } from '../../../services/modcases';
 
 const DURATION_MAP: Record<string, number> = {
   '1m':  60_000,
@@ -66,6 +67,7 @@ const timeout: CommandDef = {
     }
 
     await target.timeout(duration, reason);
+    logCase(interaction.guildId!, target.id, interaction.user.id, 'timeout', reason, interaction.options.getString('duration', true));
 
     const embed = new EmbedBuilder()
       .setColor(0xfee75c)

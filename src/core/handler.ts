@@ -1,4 +1,4 @@
-import type { Client, MessageContextMenuCommandInteraction, ChatInputCommandInteraction } from 'discord.js';
+import type { Client, MessageContextMenuCommandInteraction, ChatInputCommandInteraction, AutocompleteInteraction } from 'discord.js';
 import { Events, ActivityType, OAuth2Scopes, PermissionFlagsBits } from 'discord.js';
 import type { BotModule } from '../types';
 import { logger } from '../services/logger';
@@ -9,12 +9,14 @@ import { TextInteractionAdapter, MissingArgError } from './textAdapter';
 export function registerHandler(client: Client, modules: Map<string, BotModule>): void {
   // Build a flat command lookup: commandName → execute fn
   const commandMap = new Map<string, BotModule['commands'][number]['execute']>();
+  const autocompleteMap = new Map<string, (interaction: AutocompleteInteraction) => Promise<void>>();
   const contextMenuMap = new Map<string, (interaction: MessageContextMenuCommandInteraction) => Promise<void>>();
   const musicCommands = new Set<string>();
 
   for (const mod of modules.values()) {
     for (const cmd of mod.commands) {
       commandMap.set(cmd.data.name, cmd.execute);
+      if (cmd.autocomplete) autocompleteMap.set(cmd.data.name, cmd.autocomplete);
       if (mod.name === 'music') musicCommands.add(cmd.data.name);
     }
     for (const ctx of mod.contextMenus ?? []) {
@@ -23,6 +25,13 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
   }
 
   client.on(Events.InteractionCreate, async (interaction) => {
+    // Handle autocomplete
+    if (interaction.isAutocomplete()) {
+      const handler = autocompleteMap.get(interaction.commandName);
+      if (handler) await handler(interaction).catch(() => undefined);
+      return;
+    }
+
     // Handle context menu commands
     if (interaction.isMessageContextMenuCommand()) {
       const execute = contextMenuMap.get(interaction.commandName);
