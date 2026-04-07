@@ -2,6 +2,53 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.5.2] - 2026-04-07
+
+### Moderation
+- **Anti-nuke system** — real-time protection against mass-ban, mass-kick, mass-channel-delete, and mass-role-delete
+  - `/antinuke enable` — toggle protection on/off
+  - `/antinuke config` — set thresholds, time window, and action (strip roles / kick / ban)
+  - `/antinuke whitelist @user` — toggle trusted admins exempt from detection
+  - `/antinuke status` — view current configuration
+  - `/antinuke logs` — view recent trigger history
+  - Alerts posted automatically in the server's system channel when triggered
+- **Moderation case tracking** — all ban, kick, warn, timeout actions now logged to `mod_cases` DB table
+  - `/modlogs @user` — full moderation history for a user (warns, bans, kicks, timeouts)
+  - `/case <id>` — view a specific case by ID
+
+### Utility
+- `/giveaway start|end|reroll` — full giveaway system
+  - Optional `description` field
+  - Winners receive a DM notification
+  - Long-duration fix: supports giveaways beyond 24.8 days (Node.js `setTimeout` overflow workaround)
+- `/tags create|show|list|edit|delete` — custom server text snippets (admin only)
+- `/twitch <username>` — check if a Twitch streamer is live (title, game, viewers, thumbnail)
+- `/audit [limit]` — view recent Discord audit log entries (admin only)
+- `/userinfo` now has subcommands: `info`, `permissions`, `joinposition`
+- `/serverinfo` now has subcommands: `info`, `icon` (merged from standalone `/servericon`)
+- `/channelinfo` now has subcommands: `info`, `firstmessage` (merged from standalone `/firstmessage`)
+- `/botinfo` — added version field (v2.5.2) and OpenAI ChatGPT in AI Providers
+
+### Fun
+- `/leaderboard [period]` — top music listeners on the server (week / month / all time)
+
+### Removed
+- `/catchup` — removed (redundant with `/summarize`)
+- `/editsnipe` — removed
+- `/lyrics-translate` — removed
+- `/recommend` — removed
+- These removals keep the bot under Discord's 100 slash command limit
+
+### Fixes
+- Music auto-resume: filter and loop mode now correctly restored after bot restart (Codex)
+
+### Misc
+- SQLite schema: added `guild_tags`, `giveaways`, `mod_cases`, `antinuke_config`, `antinuke_logs` tables (20 tables total)
+- Updated `.env.example` with `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`
+- New services: `modcases.ts`, `antinuke.ts`, `giveaway.ts`, `tags.ts`
+
+---
+
 ## [2.5.1] - 2026-04-06
 
 ### AI
