@@ -73,8 +73,6 @@ const askCommand: CommandDef = {
       return;
     }
 
-    try { await interaction.deferReply(); } catch { return; }
-
     const question = interaction.options.getString('question', true);
     const rawProvider = interaction.options.getString('provider') ?? 'auto';
     const provider = (['auto', 'claude', 'gemini', 'openai', 'ollama'].includes(rawProvider) ? rawProvider : 'auto') as Provider;
@@ -91,6 +89,18 @@ const askCommand: CommandDef = {
     };
     const rawModel = interaction.options.getString('model');
     const modelOverride = rawModel ? ALLOWED_OVERRIDES[rawModel] : undefined;
+
+    // Conflict check: provider ≠ auto and contradicts the chosen model
+    if (modelOverride && rawProvider !== 'auto' && rawProvider !== modelOverride.provider) {
+      const providerLabel: Record<string, string> = { claude: 'Anthropic (Claude)', gemini: 'Google (Gemini)', openai: 'OpenAI' };
+      await interaction.reply({
+        content: `Conflict: you selected **provider: ${providerLabel[rawProvider] ?? rawProvider}** but **model: ${rawModel}** belongs to **${providerLabel[modelOverride.provider]}**.\nSet \`provider\` to **Auto** or pick a matching provider.`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    try { await interaction.deferReply(); } catch { return; }
 
     try {
       const finalPrompt = lang ? `[Respond in ${lang}] ${question}` : question;
