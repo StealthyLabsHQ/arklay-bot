@@ -62,7 +62,7 @@ const musicModule: BotModule = {
 
           const q = new GuildQueue(state.guildId, textChannel);
           q.volume = state.volume;
-          q.setLoopMode(state.loopMode);
+          q.loopMode = state.loopMode;
           q.tracks.push(...state.tracks);
 
           getQueues().set(state.guildId, q);
