@@ -45,6 +45,23 @@ export function resetSystemPrompt(): void {
   stmtDelConfig.run('system_prompt');
 }
 
+// ── Cloud AI Toggle ──────────────────────────────────────────────────────────
+
+// In-memory cache — populated lazily, avoids SQLite read on every request
+let _cloudAIEnabledCache: boolean | null = null;
+
+export function isCloudAIEnabled(): boolean {
+  if (_cloudAIEnabledCache !== null) return _cloudAIEnabledCache;
+  const row = stmtGetConfig.get('cloud_ai_enabled') as { value: string } | undefined;
+  _cloudAIEnabledCache = row?.value !== 'false'; // default: enabled
+  return _cloudAIEnabledCache;
+}
+
+export function setCloudAIEnabled(enabled: boolean): void {
+  stmtSetConfig.run('cloud_ai_enabled', enabled ? 'true' : 'false');
+  _cloudAIEnabledCache = enabled;
+}
+
 // ── Knowledge Base (RAG) ─────────────────────────────────────────────────────
 
 const stmtAddKnowledge = db.prepare(

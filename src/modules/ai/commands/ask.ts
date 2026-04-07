@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
-import { ask, askWithImage, NetworkError, SafetyError, RateLimitError, DailyLimitError, type Provider } from '../router';
+import { ask, askWithImage, NetworkError, SafetyError, RateLimitError, DailyLimitError, CloudAIDisabledError, type Provider, type ModelOverride } from '../router';
 import { withThinkingTimer } from '../../../services/thinkingTimer';
 import { checkCooldown, remainingCooldown } from '../../../services/rateLimit';
 import { remaining } from '../../../services/usageLimit';
@@ -41,6 +41,19 @@ const askCommand: CommandDef = {
           { name: 'Ollama (Local)', value: 'ollama' }
         )
     )
+    .addStringOption((opt) =>
+      opt
+        .setName('model')
+        .setDescription('Force a specific model for this request (overrides your /setmodel preference)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Gemini 3 Flash',     value: 'gemini|gemini-3-flash-preview' },
+          { name: 'Gemini Flash Lite',   value: 'gemini|gemini-3.1-flash-lite-preview' },
+          { name: 'Claude Haiku 4.5',    value: 'claude|claude-haiku-4-5' },
+          { name: 'GPT-5.4 Nano',        value: 'openai|gpt-5.4-nano' },
+          { name: 'GPT-5.4 Mini',        value: 'openai|gpt-5.4-mini' },
+        )
+    )
     .addAttachmentOption((opt) =>
       opt.setName('image').setDescription('Attach an image for visual analysis').setRequired(false)
     )
@@ -68,6 +81,17 @@ const askCommand: CommandDef = {
     const lang     = interaction.options.getString('lang');
     const image    = interaction.options.getAttachment('image');
 
+    // Parse and validate the model override (server-side whitelist)
+    const ALLOWED_OVERRIDES: Record<string, ModelOverride> = {
+      'gemini|gemini-3-flash-preview':        { provider: 'gemini', model: 'gemini-3-flash-preview' },
+      'gemini|gemini-3.1-flash-lite-preview': { provider: 'gemini', model: 'gemini-3.1-flash-lite-preview' },
+      'claude|claude-haiku-4-5':              { provider: 'claude', model: 'claude-haiku-4-5' },
+      'openai|gpt-5.4-nano':                  { provider: 'openai', model: 'gpt-5.4-nano' },
+      'openai|gpt-5.4-mini':                  { provider: 'openai', model: 'gpt-5.4-mini' },
+    };
+    const rawModel = interaction.options.getString('model');
+    const modelOverride = rawModel ? ALLOWED_OVERRIDES[rawModel] : undefined;
+
     try {
       const finalPrompt = lang ? `[Respond in ${lang}] ${question}` : question;
 
@@ -79,12 +103,12 @@ const askCommand: CommandDef = {
         const mime = image.contentType || 'image/png';
         result = await withThinkingTimer(
           interaction,
-          askWithImage(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, base64, mime, provider),
+          askWithImage(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, base64, mime, provider, modelOverride),
         );
       } else {
         result = await withThinkingTimer(
           interaction,
-          ask(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, provider),
+          ask(interaction.guildId ?? 'dm', interaction.user.id, finalPrompt, provider, true, modelOverride),
         );
       }
 
@@ -132,6 +156,7 @@ const askCommand: CommandDef = {
 };
 
 function errorMessage(err: unknown): string {
+  if (err instanceof CloudAIDisabledError) return 'Cloud AI is currently disabled. Contact the bot owner.';
   if (err instanceof DailyLimitError) {
     return `Daily limit reached for **${err.model}** (${err.limit} requests/day). Resets at midnight UTC.`;
   }

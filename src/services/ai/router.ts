@@ -5,6 +5,7 @@ import {
 import { getHistory, saveMessage } from '../database';
 import { getAIConfig } from '../aiConfig';
 import { isLimitReached, incrementUsage } from '../usageLimit';
+import { isCloudAIEnabled } from '../localaiConfig';
 
 // Re-export error types (lightweight, no SDK)
 export { NetworkError, SafetyError, RateLimitError } from './anthropic';
@@ -28,6 +29,15 @@ export class DailyLimitError extends Error {
   constructor(public readonly model: string, public readonly limit: number) {
     super(`Daily limit reached for ${model}`);
   }
+}
+
+export class CloudAIDisabledError extends Error {
+  constructor() { super('Cloud AI is currently disabled by the bot owner.'); }
+}
+
+export interface ModelOverride {
+  provider: 'claude' | 'gemini' | 'openai';
+  model: string;
 }
 
 // ── Lazy provider loaders (SDK imported on first call only) ─────────────────
@@ -58,10 +68,11 @@ export async function ask(
   prompt: string,
   provider: Provider = 'auto',
   allowThinking = true,
+  modelOverride?: ModelOverride,
 ): Promise<AskResult> {
-  const resolved = resolveProvider(provider, userId);
+  const resolved = modelOverride ? modelOverride.provider : resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
-  const actualModel = cfg.provider === resolved ? cfg.model : await defaultModel(resolved);
+  const actualModel = modelOverride?.model ?? (cfg.provider === resolved ? cfg.model : await defaultModel(resolved));
 
   if (isLimitReached(userId, actualModel)) {
     const { getDailyLimit } = await import('../usageLimit');
@@ -135,10 +146,11 @@ export async function askWithImage(
   imageBase64: string,
   imageMime: string,
   provider: Provider = 'auto',
+  modelOverride?: ModelOverride,
 ): Promise<AskResult> {
-  const resolved = resolveProvider(provider, userId);
+  const resolved = modelOverride ? modelOverride.provider : resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
-  const actualModel = cfg.provider === resolved ? cfg.model : await defaultModel(resolved);
+  const actualModel = modelOverride?.model ?? (cfg.provider === resolved ? cfg.model : await defaultModel(resolved));
 
   if (isLimitReached(userId, actualModel)) {
     const { getDailyLimit } = await import('../usageLimit');
@@ -194,9 +206,15 @@ export async function askWithImage(
 // ── Provider resolution (lightweight — no SDK imports) ──────────────────────
 
 function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemini' | 'openai' | 'ollama' {
+  const cloudEnabled = isCloudAIEnabled();
+
   if (provider === 'auto') {
     const configured = getAIConfig(userId).provider;
     if (configured === 'ollama' && ollamaAvailable()) return 'ollama';
+    if (!cloudEnabled) {
+      if (ollamaAvailable()) return 'ollama';
+      throw new CloudAIDisabledError();
+    }
     if (configured === 'openai' && openaiAvailable()) return 'openai';
     if (configured === 'gemini' && geminiAvailable()) return 'gemini';
     if (configured === 'claude' && claudeAvailable()) return 'claude';
@@ -206,6 +224,11 @@ function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemin
     if (ollamaAvailable()) return 'ollama';
     throw new Error('No AI provider available');
   }
+  if (provider === 'ollama') {
+    if (!ollamaAvailable()) throw new Error('Ollama is not configured (set OLLAMA_HOST or OLLAMA_MODEL in .env)');
+    return 'ollama';
+  }
+  if (!cloudEnabled) throw new CloudAIDisabledError();
   if (provider === 'claude') {
     if (!claudeAvailable()) throw new Error('Claude provider is not available (missing API key)');
     return 'claude';
@@ -213,10 +236,6 @@ function resolveProvider(provider: Provider, userId?: string): 'claude' | 'gemin
   if (provider === 'openai') {
     if (!openaiAvailable()) throw new Error('OpenAI provider is not available (missing API key)');
     return 'openai';
-  }
-  if (provider === 'ollama') {
-    if (!ollamaAvailable()) throw new Error('Ollama is not configured (set OLLAMA_HOST or OLLAMA_MODEL in .env)');
-    return 'ollama';
   }
   if (!geminiAvailable()) throw new Error('Gemini provider is not available (missing API key)');
   return 'gemini';

@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { Attachment, ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { isBotOwner } from '../../../services/config';
-import { getCloudPrompt, setCloudPrompt, resetCloudPrompt } from '../../../services/localaiConfig';
+import { getCloudPrompt, setCloudPrompt, resetCloudPrompt, isCloudAIEnabled, setCloudAIEnabled } from '../../../services/localaiConfig';
 
 async function readTextAttachment(file: Attachment, maxBytes = 25_000_000): Promise<string | null> {
   if (!file.name?.match(/\.(txt|md|text)$/i)) return null;
@@ -35,6 +35,14 @@ const cloudai: CommandDef = {
       sub
         .setName('status')
         .setDescription('Show cloud AI configuration status')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('toggle')
+        .setDescription('Enable or disable cloud AI providers globally')
+        .addBooleanOption((opt) =>
+          opt.setName('enabled').setDescription('True to enable, False to disable cloud AI').setRequired(true)
+        )
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -91,13 +99,30 @@ const cloudai: CommandDef = {
 
       case 'status': {
         const cloudPrompt = getCloudPrompt();
+        const cloudEnabled = isCloudAIEnabled();
         const embed = new EmbedBuilder()
-          .setColor(0x4285f4)
+          .setColor(cloudEnabled ? 0x4285f4 : 0xe74c3c)
           .setTitle('Cloud AI — Status')
           .addFields(
+            { name: 'Cloud AI', value: cloudEnabled ? 'Enabled' : 'Disabled', inline: true },
             { name: 'Cloud Prompt', value: cloudPrompt ? `Custom (${cloudPrompt.length} chars)` : 'Default', inline: true },
           )
-          .setFooter({ text: '/cloudai prompt to customize' });
+          .setFooter({ text: '/cloudai toggle to enable/disable • /cloudai prompt to customize' });
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      case 'toggle': {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        setCloudAIEnabled(enabled);
+        const embed = new EmbedBuilder()
+          .setColor(enabled ? 0x4285f4 : 0xe74c3c)
+          .setTitle(`Cloud AI — ${enabled ? 'Enabled' : 'Disabled'}`)
+          .setDescription(
+            enabled
+              ? 'Cloud AI providers (Claude, Gemini, OpenAI) are now active.'
+              : 'Cloud AI is disabled. All requests will fall back to local AI only.'
+          );
         await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
       }
