@@ -45,6 +45,21 @@ export function resetSystemPrompt(): void {
   stmtDelConfig.run('system_prompt');
 }
 
+// ── Code System Prompt ───────────────────────────────────────────────────────
+
+export function getCodePrompt(): string | null {
+  const row = stmtGetConfig.get('code_prompt') as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setCodePrompt(prompt: string): void {
+  stmtSetConfig.run('code_prompt', prompt);
+}
+
+export function resetCodePrompt(): void {
+  stmtDelConfig.run('code_prompt');
+}
+
 // ── Cloud AI Toggle ──────────────────────────────────────────────────────────
 
 // In-memory cache — populated lazily, avoids SQLite read on every request

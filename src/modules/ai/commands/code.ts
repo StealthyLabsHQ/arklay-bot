@@ -11,7 +11,7 @@ import { isLimitReached, incrementUsage, remaining } from '../../../services/usa
 import { DailyLimitError } from '../../../services/ai/router';
 import { NetworkError, SafetyError, RateLimitError } from '../../../services/ai/anthropic';
 import { getModelDisplayInfo } from '../../../services/aiConfig';
-import { getCloudPrompt } from '../../../services/localaiConfig';
+import { getCodePrompt } from '../../../services/localaiConfig';
 import { logger } from '../../../services/logger';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 
@@ -117,7 +117,7 @@ const code: CommandDef = {
     }
 
     const finalPrompt = lang ? `[Respond in ${lang}] ${basePrompt}` : basePrompt;
-    const systemPrompt = getCloudPrompt() ?? CODE_SYSTEM_PROMPT;
+    const systemPrompt = getCodePrompt() ?? CODE_SYSTEM_PROMPT;
 
     try {
       let text: string;

@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import type { Attachment, ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { isBotOwner } from '../../../services/config';
-import { getCloudPrompt, setCloudPrompt, resetCloudPrompt, isCloudAIEnabled, setCloudAIEnabled } from '../../../services/localaiConfig';
+import { getCloudPrompt, setCloudPrompt, resetCloudPrompt, getCodePrompt, setCodePrompt, resetCodePrompt, isCloudAIEnabled, setCloudAIEnabled } from '../../../services/localaiConfig';
 
 async function readTextAttachment(file: Attachment, maxBytes = 25_000_000): Promise<string | null> {
   if (!file.name?.match(/\.(txt|md|text)$/i)) return null;
@@ -43,6 +43,22 @@ const cloudai: CommandDef = {
         .addBooleanOption((opt) =>
           opt.setName('enabled').setDescription('True to enable, False to disable cloud AI').setRequired(true)
         )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('code-prompt')
+        .setDescription('Set a custom system prompt for /code (overrides the built-in coding prompt)')
+        .addStringOption((opt) =>
+          opt.setName('text').setDescription('New code system prompt (or attach a .txt file)').setRequired(false)
+        )
+        .addAttachmentOption((opt) =>
+          opt.setName('file').setDescription('Upload a .txt file with the prompt').setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('reset-code-prompt')
+        .setDescription('Reset /code system prompt to built-in default')
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -99,6 +115,7 @@ const cloudai: CommandDef = {
 
       case 'status': {
         const cloudPrompt = getCloudPrompt();
+        const codePrompt = getCodePrompt();
         const cloudEnabled = isCloudAIEnabled();
         const embed = new EmbedBuilder()
           .setColor(cloudEnabled ? 0x4285f4 : 0xe74c3c)
@@ -106,9 +123,53 @@ const cloudai: CommandDef = {
           .addFields(
             { name: 'Cloud AI', value: cloudEnabled ? 'Enabled' : 'Disabled', inline: true },
             { name: 'Cloud Prompt', value: cloudPrompt ? `Custom (${cloudPrompt.length} chars)` : 'Default', inline: true },
+            { name: 'Code Prompt', value: codePrompt ? `Custom (${codePrompt.length} chars)` : 'Built-in default', inline: true },
           )
-          .setFooter({ text: '/cloudai toggle to enable/disable • /cloudai prompt to customize' });
+          .setFooter({ text: '/cloudai toggle • /cloudai prompt • /cloudai code-prompt' });
         await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      case 'code-prompt': {
+        let text = interaction.options.getString('text') ?? '';
+        const file = interaction.options.getAttachment('file');
+        if (file) {
+          const content = await readTextAttachment(file);
+          if (content === null) {
+            await interaction.reply({ content: 'Only .txt and .md files are supported.', ephemeral: true });
+            return;
+          }
+          text = content;
+        }
+        if (!text) {
+          const current = getCodePrompt();
+          const embed = new EmbedBuilder()
+            .setColor(0x2ecc71)
+            .setTitle('Cloud AI — Code System Prompt')
+            .setDescription(current
+              ? `\`\`\`\n${current.slice(0, 4000)}\n\`\`\``
+              : '*Using built-in default coding prompt.*')
+            .setFooter({ text: 'Applies to /code only' });
+          await interaction.reply({ embeds: [embed], ephemeral: true });
+          return;
+        }
+        setCodePrompt(text);
+        const embed = new EmbedBuilder()
+          .setColor(0x2ecc71)
+          .setTitle('Cloud AI — Code Prompt Updated')
+          .setDescription(`\`\`\`\n${text.slice(0, 4000)}\n\`\`\``)
+          .addFields({ name: 'Size', value: `${text.length} chars`, inline: true })
+          .setFooter({ text: 'Active for all /code responses' });
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      case 'reset-code-prompt': {
+        resetCodePrompt();
+        await interaction.reply({
+          embeds: [new EmbedBuilder().setColor(0x2ecc71).setTitle('Cloud AI — Code Prompt Reset').setDescription('Code system prompt reset to built-in default.')],
+          ephemeral: true,
+        });
         return;
       }
 
