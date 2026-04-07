@@ -40,7 +40,10 @@ All notable changes to Arklay Bot will be documented in this file.
 - These removals keep the bot under Discord's 100 slash command limit
 
 ### Fixes
-- Music auto-resume: filter and loop mode now correctly restored after bot restart (Codex)
+- Music auto-resume: filter and loop mode now correctly restored after bot restart
+- Add `guildOnly: true` to all guild-specific modules and commands — prevents crashes when commands are used in DMs
+- Add `safeFetch` service for safe HTTP requests with proper error handling
+- `GOOGLE_APPLICATION_CREDENTIALS` placeholder detection in config validation
 
 ### Misc
 - SQLite schema: added `guild_tags`, `giveaways`, `mod_cases`, `antinuke_config`, `antinuke_logs` tables (20 tables total)
