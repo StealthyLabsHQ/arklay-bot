@@ -60,6 +60,17 @@ async function defaultModel(provider: string): Promise<string> {
   return 'gemini-3.1-flash-lite-preview';
 }
 
+// ── General-context downgrade map ────────────────────────────────────────────
+// Heavy models are automatically switched to their lightweight equivalent
+// for non-code commands (/ask, /summarize, /translate, etc.)
+// /code bypasses ask() entirely (direct SDK calls), so it keeps the heavy model.
+
+const GENERAL_DOWNGRADE: Record<string, string> = {
+  'claude-sonnet-4-6':      'claude-haiku-4-5',
+  'claude-opus-4-6':        'claude-haiku-4-5',
+  'gemini-3.1-pro-preview': 'gemini-3.1-flash-lite-preview',
+};
+
 // ── Main ask function ───────────────────────────────────────────────────────
 
 export async function ask(
@@ -72,7 +83,9 @@ export async function ask(
 ): Promise<AskResult> {
   const resolved = modelOverride ? modelOverride.provider : resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
-  const actualModel = modelOverride?.model ?? (cfg.provider === resolved ? cfg.model : await defaultModel(resolved));
+  const configuredModel = modelOverride?.model ?? (cfg.provider === resolved ? cfg.model : await defaultModel(resolved));
+  // Apply downgrade for general context unless the user explicitly picked a model this request
+  const actualModel = modelOverride ? configuredModel : (GENERAL_DOWNGRADE[configuredModel] ?? configuredModel);
 
   if (isLimitReached(userId, actualModel)) {
     const { getDailyLimit } = await import('../usageLimit');
@@ -150,7 +163,8 @@ export async function askWithImage(
 ): Promise<AskResult> {
   const resolved = modelOverride ? modelOverride.provider : resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
-  const actualModel = modelOverride?.model ?? (cfg.provider === resolved ? cfg.model : await defaultModel(resolved));
+  const configuredModel = modelOverride?.model ?? (cfg.provider === resolved ? cfg.model : await defaultModel(resolved));
+  const actualModel = modelOverride ? configuredModel : (GENERAL_DOWNGRADE[configuredModel] ?? configuredModel);
 
   if (isLimitReached(userId, actualModel)) {
     const { getDailyLimit } = await import('../usageLimit');
