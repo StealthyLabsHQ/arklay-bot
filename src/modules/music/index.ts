@@ -62,13 +62,17 @@ const musicModule: BotModule = {
 
           const q = new GuildQueue(state.guildId, textChannel);
           q.volume = state.volume;
-          q.loopMode = state.loopMode;
+          q.setLoopMode(state.loopMode);
           q.tracks.push(...state.tracks);
 
           getQueues().set(state.guildId, q);
 
           const me = guild.members.me;
           if (me) await q.connect(voiceChannel, me);
+
+          if (state.filter && state.filter !== 'none') {
+            await q.setFilter(state.filter).catch(() => undefined);
+          }
 
           if (q.tracks.length > 0) {
             q.playNext().catch((err) => logger.error({ err }, 'music: auto-resume playNext failed for %s', state.guildId));
