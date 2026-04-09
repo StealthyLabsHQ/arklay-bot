@@ -2,6 +2,26 @@
 
 All notable changes to Arklay Bot will be documented in this file.
 
+## [2.5.3] - 2026-04-09
+
+### Fixes
+- **`/meme`** — replaced Imgflip fallback with Giphy (topic-relevant results) and meme-api.com for random mode; Imgflip returned unrelated templates when Reddit was blocked on VPS IPs
+- **`/roast`** — AI providers (Claude, Gemini, OpenAI) no longer refuse roast requests; added a comedy-roast system prompt override that bypasses generic content filters
+- **`/roast`** — language instruction now placed after `<user_data>` block so the model doesn't respond in the target's message language instead of the requested one
+
+### Refactor
+- **Command compaction** — 100+ slash commands reduced to 6 parent commands with subcommands, staying well under Discord's 100-command limit:
+  - `/fun` — 13 subcommands (eightball, meme, gif, trivia, rps, coinflip, dice, leaderboard, …)
+  - `/mod` — 13 subcommands + `warn` / `botrole` / `antinuke` subcommand groups
+  - `/info` — 9 subcommands + `userinfo` / `serverinfo` / `channelinfo` subcommand groups
+  - `/tools` — 15 subcommands + `giveaway` / `tags` subcommand groups (tags autocomplete preserved)
+  - `/music` — 16 subcommands (play, pause, skip, loop, filter, volume, seek, …)
+  - `/queue` — 7 subcommands + `favorites` / `playlist` subcommand groups
+- AI commands (`/ask`, `/code`, `/roast`, `/translate`, etc.) are unaffected
+- Added optional `systemPromptOverride` parameter to `ask()`, `askClaude()`, `askGemini()`, `askOpenAI()` for per-command system prompt injection
+
+---
+
 ## [2.5.2] - 2026-04-07
 
 ### Moderation
