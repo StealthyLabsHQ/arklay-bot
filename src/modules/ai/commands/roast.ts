@@ -41,7 +41,7 @@ const roast: CommandDef = {
 
     const target = interaction.options.getUser('user', true);
     const lang   = interaction.options.getString('lang') ?? 'English';
-    let prompt = `Roast the Discord user named "${target.displayName}". Be funny, creative, and witty. Keep it to 2-3 sentences. Respond in ${lang}.`;
+    let prompt = `Roast the Discord user named "${target.displayName}". Be funny, creative, and witty. Keep it to 2-3 sentences.`;
 
     // Fetch recent messages from the target user for extra roast material
     try {
@@ -61,6 +61,9 @@ const roast: CommandDef = {
     } catch (err) {
       logger.debug({ err }, '/roast: could not fetch channel messages');
     }
+
+    // Language instruction placed last so it is not overridden by user_data content
+    prompt += `\n\nIMPORTANT: Your response MUST be written in ${lang}. Do not use any other language.`;
 
     try {
       const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt, 'auto', false, undefined, ROAST_SYSTEM_PROMPT));
