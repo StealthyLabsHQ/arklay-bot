@@ -3,8 +3,8 @@ import type { ChatInputCommandInteraction } from 'discord.js';
 import type { CommandDef } from '../../../types';
 import { logger } from '../../../services/logger';
 
+const GIPHY_KEY = process.env.GIPHY_API_KEY ?? '';
 const SUBREDDITS = ['memes', 'dankmemes', 'me_irl', 'meme', 'wholesomememes'];
-const IMGFLIP_API_URL = 'https://api.imgflip.com/get_memes';
 
 interface RedditPost {
   title: string;
@@ -13,6 +13,7 @@ interface RedditPost {
   ups: number;
   is_video: boolean;
   post_hint?: string;
+  over_18?: boolean;
 }
 
 interface MemeCandidate {
@@ -20,14 +21,6 @@ interface MemeCandidate {
   imageUrl: string;
   postUrl?: string;
   footer: string;
-}
-
-interface ImgflipMeme {
-  id: string;
-  name: string;
-  url: string;
-  width: number;
-  height: number;
 }
 
 // Realistic browser User-Agent to avoid Reddit blocking VPS IPs
@@ -45,21 +38,13 @@ function isImageUrl(url: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url);
 }
 
-function scoreSearch(title: string, search: string): number {
-  const terms = search.toLowerCase().split(/\s+/).filter((term) => term.length > 1);
-  if (terms.length === 0) return 0;
-
-  const lowerTitle = title.toLowerCase();
-  return terms.reduce((score, term) => score + (lowerTitle.includes(term) ? 1 : 0), 0);
-}
-
 function pickRandom<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)]!;
 }
 
 async function fetchReddit(url: string): Promise<{ data: { children: Array<{ data: RedditPost }> } }> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const timeout = setTimeout(() => controller.abort(), 8_000);
 
   try {
     const res = await fetch(url, {
@@ -70,21 +55,15 @@ async function fetchReddit(url: string): Promise<{ data: { children: Array<{ dat
       signal: controller.signal,
     });
 
-    if (!res.ok) {
-      throw new Error(`Reddit returned ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Reddit returned ${res.status}`);
 
     const contentType = res.headers.get('content-type') ?? '';
     if (!contentType.includes('application/json')) {
-      throw new Error(`Reddit returned non-JSON content (${contentType || 'unknown'})`);
+      throw new Error(`Reddit returned non-JSON (${contentType || 'unknown'})`);
     }
 
     const json = await res.json();
-
-    // Reddit search returns array, subreddit returns object
-    if (Array.isArray(json)) {
-      return json[0] as { data: { children: Array<{ data: RedditPost }> } };
-    }
+    if (Array.isArray(json)) return json[0] as { data: { children: Array<{ data: RedditPost }> } };
     return json as { data: { children: Array<{ data: RedditPost }> } };
   } finally {
     clearTimeout(timeout);
@@ -96,9 +75,9 @@ async function fetchRedditMemes(search: string | null): Promise<MemeCandidate[]>
   let footerPrefix: string;
 
   if (search) {
-    const encoded = encodeURIComponent(search + ' meme');
+    const encoded = encodeURIComponent(`${search} meme`);
     url = `https://www.reddit.com/search.json?q=${encoded}&sort=relevance&t=all&limit=100&type=link`;
-    footerPrefix = `Reddit search: "${search}"`;
+    footerPrefix = `Reddit • "${search}"`;
   } else {
     const sub = pickRandom(SUBREDDITS);
     url = `https://www.reddit.com/r/${sub}/hot.json?limit=50`;
@@ -109,7 +88,7 @@ async function fetchRedditMemes(search: string | null): Promise<MemeCandidate[]>
 
   return json.data.children
     .map((child) => child.data)
-    .filter((post) => !post.is_video && (post.post_hint === 'image' || isImageUrl(post.url)))
+    .filter((post) => !post.is_video && !post.over_18 && (post.post_hint === 'image' || isImageUrl(post.url)))
     .map((post) => ({
       title: post.title,
       imageUrl: post.url,
@@ -118,65 +97,77 @@ async function fetchRedditMemes(search: string | null): Promise<MemeCandidate[]>
     }));
 }
 
-async function fetchImgflipMemes(search: string | null): Promise<MemeCandidate[]> {
-  const res = await fetch(IMGFLIP_API_URL, {
-    headers: { 'User-Agent': 'ArklayBot/1.0 (+https://github.com/StealthyLabsHQ/arklay-bot)' },
-    signal: AbortSignal.timeout(10_000),
-  });
+// Giphy fallback for search queries — works from any VPS IP
+async function fetchGiphyMemes(search: string): Promise<MemeCandidate[]> {
+  if (!GIPHY_KEY) throw new Error('GIPHY_API_KEY not configured');
 
-  if (!res.ok) {
-    throw new Error(`Imgflip returned ${res.status}`);
-  }
+  const encoded = encodeURIComponent(`${search} meme`);
+  const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encoded}&limit=25&rating=pg`;
 
-  const json = await res.json() as { success?: boolean; data?: { memes?: ImgflipMeme[] } };
-  const memes = json.data?.memes ?? [];
-  if (!json.success || memes.length === 0) {
-    throw new Error('Imgflip returned no memes');
-  }
+  const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+  if (!res.ok) throw new Error(`Giphy returned ${res.status}`);
 
-  const filtered = memes.filter((meme) => isImageUrl(meme.url));
-  if (!search) {
-    return filtered.map((meme) => ({
-      title: meme.name,
-      imageUrl: meme.url,
-      footer: 'Imgflip fallback',
+  const json = await res.json() as {
+    data: Array<{ title: string; images?: { original?: { url: string } } }>;
+  };
+
+  return (json.data ?? [])
+    .map((gif) => ({
+      title: gif.title || search,
+      imageUrl: gif.images?.original?.url ?? '',
+      footer: `Giphy • "${search}"`,
+    }))
+    .filter((m) => m.imageUrl.length > 0);
+}
+
+// meme-api.com fallback for random memes — Reddit proxy, bypasses VPS IP blocks
+async function fetchMemeApiRandom(): Promise<MemeCandidate[]> {
+  const res = await fetch('https://meme-api.com/gimme/20', { signal: AbortSignal.timeout(8_000) });
+  if (!res.ok) throw new Error(`meme-api returned ${res.status}`);
+
+  const json = await res.json() as {
+    memes: Array<{ title: string; url: string; postLink: string; ups: number; nsfw: boolean }>;
+  };
+
+  return (json.memes ?? [])
+    .filter((m) => !m.nsfw && isImageUrl(m.url))
+    .map((m) => ({
+      title: m.title,
+      imageUrl: m.url,
+      postUrl: m.postLink,
+      footer: `Reddit • ${m.ups} upvotes`,
     }));
-  }
-
-  const ranked = filtered
-    .map((meme) => ({ meme, score: scoreSearch(meme.name, search) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 25)
-    .map(({ meme }) => ({
-      title: meme.name,
-      imageUrl: meme.url,
-      footer: `Imgflip fallback • search: "${search}"`,
-    }));
-
-  return ranked.length > 0 ? ranked : filtered.slice(0, 25).map((meme) => ({
-    title: meme.name,
-    imageUrl: meme.url,
-    footer: `Imgflip fallback • broad match for "${search}"`,
-  }));
 }
 
 async function resolveMeme(search: string | null): Promise<MemeCandidate> {
+  // Try Reddit first (works on some hosts and locally)
   try {
     const redditMemes = await fetchRedditMemes(search);
-    if (redditMemes.length > 0) {
-      return pickRandom(redditMemes);
-    }
+    if (redditMemes.length > 0) return pickRandom(redditMemes);
   } catch (err) {
-    logger.warn({ err }, '/meme: Reddit source failed, falling back to Imgflip');
+    logger.warn({ err }, '/meme: Reddit failed, trying fallback');
   }
 
-  const fallbackMemes = await fetchImgflipMemes(search);
-  if (fallbackMemes.length === 0) {
-    throw new Error('No memes available from any source');
+  if (search) {
+    // Search fallback: Giphy returns topically relevant results
+    try {
+      const giphyMemes = await fetchGiphyMemes(search);
+      if (giphyMemes.length > 0) return pickRandom(giphyMemes);
+    } catch (err) {
+      logger.warn({ err }, '/meme: Giphy failed');
+    }
+    throw new Error(`No memes found for "${search}"`);
   }
 
-  return pickRandom(fallbackMemes);
+  // Random fallback: meme-api.com (Reddit proxy, no auth needed)
+  try {
+    const apiMemes = await fetchMemeApiRandom();
+    if (apiMemes.length > 0) return pickRandom(apiMemes);
+  } catch (err) {
+    logger.warn({ err }, '/meme: meme-api.com failed');
+  }
+
+  throw new Error('No memes available from any source');
 }
 
 const meme: CommandDef = {
@@ -208,7 +199,10 @@ const meme: CommandDef = {
       await interaction.editReply({ embeds: [embed] });
     } catch (err) {
       logger.warn({ err }, '/meme failed');
-      await interaction.editReply('Could not fetch meme right now. Try again in a moment.');
+      const msg = err instanceof Error && err.message.includes('No memes found')
+        ? `No memes found for that search. Try different keywords.`
+        : 'Could not fetch meme right now. Try again in a moment.';
+      await interaction.editReply(msg);
     }
   },
 };
