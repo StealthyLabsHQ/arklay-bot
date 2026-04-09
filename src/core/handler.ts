@@ -104,7 +104,8 @@ export function registerHandler(client: Client, modules: Map<string, BotModule>)
   const botName = config.BOT_NAME.toLowerCase();
 
   // Commands that should NOT be handled via text prefix (subcommands, complex options)
-  const TEXT_BLACKLIST = new Set(['config', 'warn', 'botrole', 'nanobanana', 'cloudai', 'localai', 'favorites', 'playlist', 'code', 'persona']);
+  // Commands with subcommands cannot be used via text prefix
+  const TEXT_BLACKLIST = new Set(['config', 'warn', 'botrole', 'nanobanana', 'cloudai', 'localai', 'favorites', 'playlist', 'code', 'persona', 'fun', 'mod', 'info', 'tools', 'music', 'queue']);
 
   client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild || !message.content) return;

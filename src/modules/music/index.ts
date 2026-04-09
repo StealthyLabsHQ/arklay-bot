@@ -7,33 +7,14 @@ import { getQueues } from '../../services/musicQueue';
 import { loadAllQueueStates, deleteQueueState } from '../../services/musicResume';
 import { waitForLavalink } from '../../services/lavalink';
 import { GuildQueue } from './structures/GuildQueue';
-import play from './commands/play';
-import { pause, resume, skip, stop, queue } from './commands/controls';
-import nowplaying from './commands/nowplaying';
-import loop from './commands/loop';
-import volume from './commands/volume';
-import shuffle from './commands/shuffle';
-import remove from './commands/remove';
-import save from './commands/save';
-import lyrics from './commands/lyrics';
-import seek from './commands/seek';
-import filter from './commands/filter';
-import skipto from './commands/skipto';
-import replay from './commands/replay';
-import previous from './commands/previous';
-import move from './commands/move';
-import autoplay from './commands/autoplay';
-import favorites from './commands/favorites';
-import playlist from './commands/playlist';
-import historyCmd from './commands/history';
-import twentyfourseven from './commands/twentyfourseven';
-import stats from './commands/stats';
+import musicCmd from './commands/music_cmd';
+import queueCmd from './commands/queue_cmd';
 
 const musicModule: BotModule = {
   name: 'music',
   enabled: true,
   guildOnly: true,
-  commands: [play, pause, resume, skip, stop, queue, nowplaying, loop, volume, shuffle, remove, save, lyrics, seek, filter, skipto, replay, previous, move, autoplay, favorites, playlist, historyCmd, twentyfourseven, stats],
+  commands: [musicCmd, queueCmd],
 
   async onLoad(client: Client): Promise<void> {
     logger.info('music: module loaded (yt-dlp backend)');
@@ -58,11 +39,11 @@ const musicModule: BotModule = {
           if (!guild) { deleteQueueState(state.guildId); continue; }
 
           const voiceChannel = guild.channels.cache.get(state.voiceChannelId) as VoiceBasedChannel | undefined;
-          const textChannel = guild.channels.cache.get(state.textChannelId) as TextChannel | undefined;
+          const textChannel  = guild.channels.cache.get(state.textChannelId) as TextChannel | undefined;
           if (!voiceChannel || !textChannel) { deleteQueueState(state.guildId); continue; }
 
           const q = new GuildQueue(state.guildId, textChannel);
-          q.volume = state.volume;
+          q.volume   = state.volume;
           q.loopMode = state.loopMode;
           q.tracks.push(...state.tracks);
 
