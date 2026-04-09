@@ -84,14 +84,15 @@ export async function askGeminiWithImage(
 export async function askGemini(
   history: ConversationMessage[],
   newPrompt: string,
-  userId?: string
+  userId?: string,
+  systemPromptOverride?: string,
 ): Promise<GeminiResult> {
   try {
     const cfg = getAIConfig(userId);
     const modelId = cfg.provider === 'gemini' ? cfg.model : 'gemini-3.1-flash-lite-preview';
     const model = getClient().getGenerativeModel({
       model: modelId,
-      systemInstruction: getCloudPrompt() ?? DEFAULT_SYSTEM_INSTRUCTION,
+      systemInstruction: systemPromptOverride ?? getCloudPrompt() ?? DEFAULT_SYSTEM_INSTRUCTION,
       generationConfig: { maxOutputTokens: 1024 },
     });
 

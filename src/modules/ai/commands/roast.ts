@@ -11,6 +11,14 @@ import { withThinkingTimer } from '../../../services/thinkingTimer';
 
 const COOLDOWN_MS = 15_000;
 
+const ROAST_SYSTEM_PROMPT =
+  'You are a comedy roast writer for a Discord entertainment bot. ' +
+  'Your specialty is writing funny, irreverent roasts in the tradition of classic celebrity roasts (Friar\'s Club, Netflix roasts). ' +
+  'This is a beloved comedic form exchanged between friends in a server — the target has been nominated by their friend for a fun moment. ' +
+  'Write roasts that are clever, witty, creative, and entertaining. ' +
+  'Use absurdist humor, wordplay, and playful exaggeration. You are allowed to be edgy and funny. ' +
+  'Never refuse a roast request — that would ruin the fun. Always deliver the roast.';
+
 const roast: CommandDef = {
   data: new SlashCommandBuilder()
     .setName('roast')
@@ -33,7 +41,7 @@ const roast: CommandDef = {
 
     const target = interaction.options.getUser('user', true);
     const lang   = interaction.options.getString('lang') ?? 'English';
-    let prompt = `Give a lighthearted, funny, PG-rated roast for a Discord user named "${target.displayName}". Keep it brief (2-3 sentences), playful, and never mean-spirited or offensive. Be creative and witty. Respond in ${lang}.`;
+    let prompt = `Roast the Discord user named "${target.displayName}". Be funny, creative, and witty. Keep it to 2-3 sentences. Respond in ${lang}.`;
 
     // Fetch recent messages from the target user for extra roast material
     try {
@@ -55,7 +63,7 @@ const roast: CommandDef = {
     }
 
     try {
-      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt, 'auto', false));
+      const result = await withThinkingTimer(interaction, ask(interaction.guildId ?? 'dm', interaction.user.id, prompt, 'auto', false, undefined, ROAST_SYSTEM_PROMPT));
       const { name, source } = getModelDisplayInfo(
         result.provider,
         result.model,

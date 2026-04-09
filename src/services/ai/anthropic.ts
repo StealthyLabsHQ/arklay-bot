@@ -124,7 +124,8 @@ export async function askClaudeWithImage(
 export async function askClaude(
   history: ConversationMessage[],
   newPrompt: string,
-  userId?: string
+  userId?: string,
+  systemPromptOverride?: string,
 ): Promise<ClaudeResult> {
   const model = resolveClaudeModel(userId);
 
@@ -140,7 +141,7 @@ export async function askClaude(
       system: [
         {
           type: 'text',
-          text: getEffectiveCloudPrompt(),
+          text: systemPromptOverride ?? getEffectiveCloudPrompt(),
           cache_control: { type: 'ephemeral' },
         },
       ],

@@ -80,6 +80,7 @@ export async function ask(
   provider: Provider = 'auto',
   allowThinking = true,
   modelOverride?: ModelOverride,
+  systemPromptOverride?: string,
 ): Promise<AskResult> {
   const resolved = modelOverride ? modelOverride.provider : resolveProvider(provider, userId);
   const cfg = getAIConfig(userId);
@@ -101,7 +102,7 @@ export async function ask(
 
   if (resolved === 'claude') {
     const { askClaude } = await loadClaude();
-    const result = await askClaude(history, finalPrompt, userId);
+    const result = await askClaude(history, finalPrompt, userId, systemPromptOverride);
     incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', prompt);
     saveMessage(guildId, userId, 'assistant', result.text);
@@ -110,7 +111,7 @@ export async function ask(
 
   if (resolved === 'openai') {
     const { askOpenAI } = await loadOpenAI();
-    const result = await askOpenAI(history, finalPrompt, userId);
+    const result = await askOpenAI(history, finalPrompt, userId, systemPromptOverride);
     incrementUsage(userId, actualModel);
     saveMessage(guildId, userId, 'user', prompt);
     saveMessage(guildId, userId, 'assistant', result.text);
@@ -138,7 +139,7 @@ export async function ask(
 
   // Gemini (default)
   const { askGemini } = await loadGemini();
-  const result = await askGemini(history, finalPrompt, userId);
+  const result = await askGemini(history, finalPrompt, userId, systemPromptOverride);
   incrementUsage(userId, actualModel);
   saveMessage(guildId, userId, 'user', prompt);
   saveMessage(guildId, userId, 'assistant', result.text);

@@ -61,11 +61,12 @@ export async function askOpenAI(
   history: ConversationMessage[],
   newPrompt: string,
   userId?: string,
+  systemPromptOverride?: string,
 ): Promise<OpenAIResult> {
   const model = resolveSmartModel(newPrompt, userId);
 
   const messages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: 'system', content: getCloudPrompt() ?? DEFAULT_SYSTEM_PROMPT },
+    { role: 'system', content: systemPromptOverride ?? getCloudPrompt() ?? DEFAULT_SYSTEM_PROMPT },
     ...history.map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
