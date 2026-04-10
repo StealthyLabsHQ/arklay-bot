@@ -1,6 +1,7 @@
 import type { Client } from 'discord.js';
 import { Events } from 'discord.js';
 import type { BotModule } from '../../types';
+import help from './commands/help';
 import info from './commands/info';
 import tools from './commands/tools';
 import stealSticker from './contextMenus/stealSticker';
@@ -11,7 +12,7 @@ import { editedMessages } from './commands/editsnipe';
 const utilityModule: BotModule = {
   name: 'utility',
   enabled: true,
-  commands: [info, tools],
+  commands: [help, info, tools],
   contextMenus: [stealSticker],
 
   async onLoad(client: Client): Promise<void> {

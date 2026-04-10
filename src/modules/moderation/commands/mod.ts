@@ -13,7 +13,6 @@ import slowmode from './slowmode';
 import role from './role';
 import caseCmd from './case';
 import modlogs from './modlogs';
-import help from './help';
 import warn from './warn';
 import botrole from './botrole';
 import antinuke from './antinuke';
@@ -101,9 +100,6 @@ const mod: CommandDef = {
       sub.setName('modlogs').setDescription('View moderation history for a user')
         .addUserOption((opt) => opt.setName('user').setDescription('User to look up').setRequired(true))
     )
-    .addSubcommand((sub) =>
-      sub.setName('help').setDescription('Show the help menu')
-    )
     // ── Subcommand groups (commands that have their own subcommands) ───────────
     .addSubcommandGroup((group) =>
       group.setName('warn').setDescription('Warn a user (admin only)')
@@ -182,7 +178,7 @@ const mod: CommandDef = {
     // Root subcommand dispatch
     const handlers: Record<string, CommandDef> = {
       ban, kick, mute, timeout, unban, clear, nuke, lockdown, slowmode, role,
-      case: caseCmd, modlogs, help,
+      case: caseCmd, modlogs,
     };
     await handlers[sub]?.execute(interaction);
   },
